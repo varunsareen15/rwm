@@ -42,11 +42,21 @@ impl WindowManager {
         conn: &C,
         window: Window,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        // Find if the destroyed window was in our list
         if let Some(pos) = self.managed_windows.iter().position(|&w| w == window) {
             self.managed_windows.remove(pos);
             
+            // If the destroyed window was the one with focus...
             if self.focused_window == Some(window) {
-                self.focused_window = None;
+                // ...try to focus the previous window in the list (or the last one)
+                // If the list is empty, this returns None, which is correct.
+                let next_window = self.managed_windows.last().copied();
+                
+                if let Some(win) = next_window {
+                    self.set_focus(conn, win)?;
+                } else {
+                    self.focused_window = None;
+                }
             }
 
             self.refresh_layout(conn)?;
@@ -55,6 +65,7 @@ impl WindowManager {
     }
 
     pub fn kill_focused_window<C: Connection>(&self, conn: &C) -> Result<(), Box<dyn std::error::Error>> {
+        // We only try to kill if we actually have a focused window
         if let Some(window) = self.focused_window {
             conn.kill_client(window)?;
         }
@@ -63,8 +74,6 @@ impl WindowManager {
 
     fn set_focus<C: Connection>(&mut self, conn: &C, window: Window) -> Result<(), Box<dyn std::error::Error>> {
         self.focused_window = Some(window);
-        // FIX: Use 0u32 instead of `0 as Time`. 
-        // In X11, time 0 means "CurrentTime".
         conn.set_input_focus(InputFocus::POINTER_ROOT, window, 0u32)?;
         Ok(())
     }
