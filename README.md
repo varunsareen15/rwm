@@ -4,6 +4,7 @@
 
 This project was built to demonstrate low-level systems programming concepts, safe memory management in an unsafe environment (X11), and event-driven architecture. It communicates directly with the X server without relying on high-level windowing abstractions or frameworks.
 
+![Screenshot of rwm](rwm.png)
 
 ## 🚀 Features
 
@@ -28,8 +29,11 @@ The codebase is modularized to separate concerns, demonstrating clean software e
 | Keybinding | Action |
 | :--- | :--- |
 | **Mod + Enter** | Spawn Terminal (`kitty`) |
+| **Mod + Space** | Change Layout  |
 | **Mod + Shift + Q** | Close the focused window |
 | **Mod + Ctrl + Q** | Quit the Window Manager |
+| **Mod + K** | Focus Above Window |
+| **Mod + J** | Focus Below Window |
 
 ## 📦 Prerequisites
 
@@ -68,7 +72,6 @@ The safest way to develop and test the window manager is using **Xephyr**, which
 
 ## 🔮 Future Roadmap
 
-* [ ] **Window Switching:** Vim-like bindings (`j`, `k`) to change focus between open windows.
 * [ ] **Layouts:** Support for Master/Stack and Monocle layouts.
 * [ ] **Workspaces:** Support for multiple virtual desktops.
 * [ ] **Configuration:** TOML-based configuration file for custom keybinds.
