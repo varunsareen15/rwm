@@ -1,9 +1,27 @@
 use x11rb::connection::Connection;
-// FIX 2A: Import ConnectionExt for configure_window
-use x11rb::protocol::xproto::{ConfigureWindowAux, ConnectionExt, Window}; 
+use x11rb::protocol::xproto::{ConfigureWindowAux, ConnectionExt, Window};
 
-/// Basic vertical tiling: splits the screen height evenly among all windows.
-pub fn tile_windows<C: Connection>(
+#[derive(Debug, Clone, Copy)]
+pub enum Layout {
+    VerticalStack, // Every window same height
+    MasterStack,   // One Master on left, stack on right
+}
+
+// Main entry point that dispatches to specific layout functions
+pub fn apply_layout<C: Connection>(
+    conn: &C,
+    layout_kind: Layout,
+    windows: &[Window],
+    screen_width: u16,
+    screen_height: u16,
+) -> Result<(), Box<dyn std::error::Error>> {
+    match layout_kind {
+        Layout::VerticalStack => tile_vertical_stack(conn, windows, screen_width, screen_height),
+        Layout::MasterStack => tile_master_stack(conn, windows, screen_width, screen_height),
+    }
+}
+
+pub fn tile_vertical_stack<C: Connection>(
     conn: &C,
     windows: &[Window],
     screen_width: u16,
@@ -16,26 +34,81 @@ pub fn tile_windows<C: Connection>(
     }
 
     let height_per_window = screen_height / num_windows;
+    let mut y_offset = 0;
 
     for (i, &window) in windows.iter().enumerate() {
-        let i = i as u16;
+        let height = if i == (num_windows - 1) as usize {
+            screen_height - y_offset
+        } else {
+            height_per_window
+        };
 
-        let x = 0;
-        let y = i * height_per_window;
-        let width = screen_width;
-        let height = height_per_window;
-
-        // FIX 2B: Cast u16 (width/height) to u32 because x11rb expects u32 for these fields
         let changes = ConfigureWindowAux::new()
-            .x(x as i32)
-            .y(y as i32)
-            .width(width as u32) 
+            .x(0)
+            .y(y_offset as i32)
+            .width(screen_width as u32)
             .height(height as u32)
             .border_width(1);
 
-        // FIX 2C: configure_window is available because ConnectionExt is imported
-        conn.configure_window(window, &changes)?; 
+        conn.configure_window(window, &changes)?;
+        y_offset += height;
+    }
+    Ok(())
+}
+
+pub fn tile_master_stack<C: Connection>(
+    conn: &C,
+    windows: &[Window],
+    screen_width: u16,
+    screen_height: u16,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let num_windows = windows.len();
+    if num_windows == 0 {
+        return Ok(());
     }
 
+    // If only one window, it takes the full screen
+    if num_windows == 1 {
+        return tile_vertical_stack(conn, windows, screen_width, screen_height);
+    }
+
+    // Parameters
+    let master_ratio = 0.55; // Master takes 55% width
+    let master_width = (screen_width as f32 * master_ratio) as u16;
+    let stack_width = screen_width - master_width;
+
+    // Configure the Master Window (Index 0)
+    let master_changes = ConfigureWindowAux::new()
+        .x(0)
+        .y(0)
+        .width(master_width as u32)
+        .height(screen_height as u32)
+        .border_width(1);
+
+    conn.configure_window(windows[0], &master_changes)?;
+
+    // Configure the Stack Windows (Indices 1..n)
+    let stack_windows = &windows[1..];
+    let num_stack = stack_windows.len() as u16;
+    let height_per_stack = screen_height / num_stack;
+    let mut y_offset = 0;
+
+    for (i, &window) in stack_windows.iter().enumerate() {
+        let height = if i == (num_stack - 1) as usize {
+            screen_height - y_offset
+        } else {
+            height_per_stack
+        };
+
+        let changes = ConfigureWindowAux::new()
+            .x(master_width as i32)
+            .y(y_offset as i32)
+            .width(stack_width as u32)
+            .height(height as u32)
+            .border_width(1);
+
+        conn.configure_window(window, &changes)?;
+        y_offset += height;
+    }
     Ok(())
 }

@@ -1,4 +1,4 @@
-use crate::layout;
+use crate::layout::{self, Layout};
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{ConnectionExt, InputFocus, Screen, Time, Window};
 
@@ -10,6 +10,7 @@ pub enum FocusDirection {
 pub struct WindowManager {
     managed_windows: Vec<Window>,
     focused_window: Option<Window>,
+    layout: Layout,
     screen_width: u16,
     screen_height: u16,
 }
@@ -19,6 +20,7 @@ impl WindowManager {
         Self {
             managed_windows: Vec::new(),
             focused_window: None,
+            layout: Layout::MasterStack, // Default to MasterStack
             screen_width: screen.width_in_pixels,
             screen_height: screen.height_in_pixels,
         }
@@ -32,12 +34,9 @@ impl WindowManager {
         if !self.managed_windows.contains(&window) {
             self.managed_windows.push(window);
         }
-
         conn.map_window(window)?;
-
         // Focus the new window
         self.set_focus(conn, window)?;
-
         self.refresh_layout(conn)?;
         Ok(())
     }
@@ -50,22 +49,31 @@ impl WindowManager {
         // Find if the destroyed window was in our list
         if let Some(pos) = self.managed_windows.iter().position(|&w| w == window) {
             self.managed_windows.remove(pos);
-
             // If the destroyed window was the one with focus...
             if self.focused_window == Some(window) {
                 // ...try to focus the previous window in the list (or the last one)
                 // If the list is empty, this returns None, which is correct.
                 let next_window = self.managed_windows.last().copied();
-
                 if let Some(win) = next_window {
                     self.set_focus(conn, win)?;
                 } else {
                     self.focused_window = None;
                 }
             }
-
             self.refresh_layout(conn)?;
         }
+        Ok(())
+    }
+
+    pub fn cycle_layout<C: Connection>(
+        &mut self,
+        conn: &C,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        self.layout = match self.layout {
+            Layout::MasterStack => Layout::VerticalStack,
+            Layout::VerticalStack => Layout::MasterStack,
+        };
+        self.refresh_layout(conn)?;
         Ok(())
     }
 
@@ -125,8 +133,9 @@ impl WindowManager {
     }
 
     fn refresh_layout<C: Connection>(&self, conn: &C) -> Result<(), Box<dyn std::error::Error>> {
-        layout::tile_windows(
+        layout::apply_layout(
             conn,
+            self.layout,
             &self.managed_windows,
             self.screen_width,
             self.screen_height,
