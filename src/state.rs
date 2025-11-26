@@ -1,6 +1,8 @@
 use crate::layout::{self, Layout};
 use x11rb::connection::Connection;
-use x11rb::protocol::xproto::{ConnectionExt, InputFocus, Screen, Time, Window};
+use x11rb::protocol::xproto::{
+    ConfigureWindowAux, ConnectionExt, InputFocus, Screen, StackMode, Window,
+};
 
 pub enum FocusDirection {
     Next,
@@ -71,8 +73,14 @@ impl WindowManager {
     ) -> Result<(), Box<dyn std::error::Error>> {
         self.layout = match self.layout {
             Layout::MasterStack => Layout::VerticalStack,
-            Layout::VerticalStack => Layout::MasterStack,
+            Layout::VerticalStack => Layout::Monocle,
+            Layout::Monocle => Layout::MasterStack,
         };
+        // Changing layout might require restacking so refocus to ensure focused window stays on
+        // top if needed
+        if let Some(win) = self.focused_window {
+            self.set_focus(conn, win)?;
+        }
         self.refresh_layout(conn)?;
         Ok(())
     }
@@ -129,6 +137,8 @@ impl WindowManager {
     ) -> Result<(), Box<dyn std::error::Error>> {
         self.focused_window = Some(window);
         conn.set_input_focus(InputFocus::POINTER_ROOT, window, 0u32)?;
+        let values = ConfigureWindowAux::new().stack_mode(StackMode::ABOVE);
+        conn.configure_window(window, &values)?;
         Ok(())
     }
 

@@ -5,6 +5,7 @@ use x11rb::protocol::xproto::{ConfigureWindowAux, ConnectionExt, Window};
 pub enum Layout {
     VerticalStack, // Every window same height
     MasterStack,   // One Master on left, stack on right
+    Monocle,      // Every window takes whole screen, stacked on top of each other
 }
 
 // Main entry point that dispatches to specific layout functions
@@ -18,6 +19,7 @@ pub fn apply_layout<C: Connection>(
     match layout_kind {
         Layout::VerticalStack => tile_vertical_stack(conn, windows, screen_width, screen_height),
         Layout::MasterStack => tile_master_stack(conn, windows, screen_width, screen_height),
+        Layout::Monocle => tile_monocle(conn, windows, screen_width, screen_height),
     }
 }
 
@@ -109,6 +111,29 @@ pub fn tile_master_stack<C: Connection>(
 
         conn.configure_window(window, &changes)?;
         y_offset += height;
+    }
+    Ok(())
+}
+
+fn tile_monocle<C: Connection>(
+    conn: &C,
+    windows: &[Window],
+    screen_width: u16,
+    screen_height: u16,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let width = screen_width as u32;
+    let height = screen_height as u32;
+
+    // Every WWindow gets full screen dimensions
+    let changes = ConfigureWindowAux::new()
+        .x(0)
+        .y(0)
+        .width(width)
+        .height(height)
+        .border_width(0);
+
+    for &window in windows {
+        conn.configure_window(window, &changes)?;
     }
     Ok(())
 }
