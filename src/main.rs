@@ -1,5 +1,7 @@
+mod bar;
 mod layout;
 mod state;
+mod workspace;
 
 use state::WindowManager;
 use std::process::Command;
@@ -13,6 +15,8 @@ const XK_SPACE: u32 = 0x0020;
 const XK_Q: u32 = 0x0071;
 const XK_J: u32 = 0x006a;
 const XK_K: u32 = 0x006b;
+const XK_1: u32 = 0x0031;
+const XK_9: u32 = 0x0039;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
@@ -34,7 +38,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // --- Setup Keybinds ---
     // We now scan for J and K as well
-    let (k_ret, k_space, k_q, k_j, k_k) = scan_key_codes(&conn)?;
+    let (k_ret, k_space, k_q, k_j, k_k, key_map) = scan_key_codes(&conn)?;
 
     // Grab keys
     if let Some(code) = k_ret {
@@ -57,13 +61,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         grab_key(&conn, screen.root, code, ModMask::M4)?;
     }
 
+    for &(code, _) in &key_map {
+        // Super + # (Switch)
+        grab_key(&conn, screen.root, code, ModMask::M4)?;
+        // Super + Shift + # (Move Window to ws)
+        grab_key(&conn, screen.root, code, ModMask::M4 | ModMask::SHIFT)?;
+    }
+
     conn.flush()?;
     // ----------------------
 
-    let mut wm_state = WindowManager::new(screen);
-    log::info!(
-        "WM Started. Controls: Super+Enter, Super+Space Super+J/K, Super+Shift+Q, Super+Ctrl+Q"
-    );
+    let mut wm_state = WindowManager::new(&conn, screen)?;
+    log::info!("RWM STARTED");
 
     loop {
         conn.flush()?;
@@ -98,6 +107,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     wm_state.cycle_focus(&conn, state::FocusDirection::Prev)?;
                 } else if Some(key) == k_space && (modifiers & mod_super != 0) {
                     wm_state.cycle_layout(&conn)?;
+                } else if let Some(&(_, ws_index)) = key_map.iter().find(|(code, _)| *code == key) {
+                    if modifiers & mod_super != 0 {
+                        if modifiers & mod_shift != 0 {
+                            wm_state.move_window_to_workspace(&conn, ws_index)?;
+                        } else {
+                            wm_state.switch_workspace(&conn, ws_index)?;
+                        }
+                    }
                 }
             }
             _ => {}
@@ -133,8 +150,17 @@ fn spawn_terminal() {
 // Updated to return 4 keys
 fn scan_key_codes(
     conn: &impl Connection,
-) -> Result<(Option<u8>, Option<u8>, Option<u8>, Option<u8>, Option<u8>), Box<dyn std::error::Error>>
-{
+) -> Result<
+    (
+        Option<u8>,
+        Option<u8>,
+        Option<u8>,
+        Option<u8>,
+        Option<u8>,
+        Vec<(u8, usize)>,
+    ),
+    Box<dyn std::error::Error>,
+> {
     let setup = conn.setup();
     let min_keycode = setup.min_keycode;
     let max_keycode = setup.max_keycode;
@@ -149,6 +175,7 @@ fn scan_key_codes(
     let mut k_q = None;
     let mut k_j = None;
     let mut k_k = None;
+    let mut key_map = Vec::new(); // Stores (keycode, ws_idx)
 
     for (i, code) in (min_keycode..=max_keycode).enumerate() {
         let start = i * keysyms_per_keycode;
@@ -168,8 +195,12 @@ fn scan_key_codes(
             if sym == XK_K && k_k.is_none() {
                 k_k = Some(code);
             }
+            if sym >= XK_1 && sym <= XK_9 {
+                let ws_index = (sym - XK_1) as usize;
+                key_map.push((code, ws_index));
+            }
         }
     }
 
-    Ok((k_ret, k_space, k_q, k_j, k_k))
+    Ok((k_ret, k_space, k_q, k_j, k_k, key_map))
 }
