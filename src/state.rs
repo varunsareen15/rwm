@@ -3,7 +3,7 @@ use crate::layout::{self, Layout};
 use crate::workspace::Workspace;
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{
-    ConfigureWindowAux, ConnectionExt, InputFocus, Screen, StackMode, Window,
+    ConfigureWindowAux, ConnectionExt, ExposeEvent, InputFocus, Screen, StackMode, Window,
 };
 
 pub enum FocusDirection {
@@ -18,6 +18,7 @@ pub struct WindowManager {
     bar: Bar,
     screen_width: u16,
     screen_height: u16,
+    root: Window,
 }
 
 impl WindowManager {
@@ -40,6 +41,7 @@ impl WindowManager {
             bar,
             screen_width: screen.width_in_pixels,
             screen_height: screen.height_in_pixels,
+            root: screen.root,
         })
     }
 
@@ -56,7 +58,21 @@ impl WindowManager {
         conn.map_window(window)?;
         // Focus the new window
         self.set_focus(conn, window)?;
+        self.bar
+            .draw(conn, self.active_workspace_idx, self.workspaces.len())?;
         self.refresh_layout(conn)?;
+        Ok(())
+    }
+
+    pub fn handle_expose<C: Connection>(
+        &mut self,
+        conn: &C,
+        event: ExposeEvent,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        if event.window == self.bar.window {
+            self.bar
+                .draw(conn, self.active_workspace_idx, self.workspaces.len())?;
+        }
         Ok(())
     }
 
@@ -78,6 +94,7 @@ impl WindowManager {
                     self.set_focus(conn, win)?;
                 } else {
                     self.focused_window = None;
+                    conn.set_input_focus(InputFocus::POINTER_ROOT, self.root, 0u32)?;
                 }
             }
             self.refresh_layout(conn)?;

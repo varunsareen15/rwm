@@ -85,6 +85,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Event::DestroyNotify(evt) => {
                 wm_state.handle_destroy_notify(&conn, evt.window)?;
             }
+            Event::Expose(evt) => {
+                wm_state.handle_expose(&conn, evt)?;
+            },
             Event::KeyPress(evt) => {
                 let modifiers = u16::from(evt.state);
                 let key = evt.detail;

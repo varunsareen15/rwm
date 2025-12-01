@@ -1,10 +1,11 @@
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{
-    ConnectionExt, CreateWindowAux, Gcontext, Rectangle, Screen, Window, WindowClass,
+    ConfigureWindowAux, ConnectionExt, CreateWindowAux, Gcontext, Rectangle, Screen, StackMode,
+    Window, WindowClass,
 };
 
 pub struct Bar {
-    window: Window,
+    pub window: Window,
     gc: Gcontext,
     width: u16,
     height: u16,
@@ -65,6 +66,8 @@ impl Bar {
         active_idx: usize,
         total_workspaces: usize,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        let stack = ConfigureWindowAux::new().stack_mode(StackMode::ABOVE);
+        conn.configure_window(self.window, &stack)?;
         conn.clear_area(false, self.window, 0, 0, self.width, self.height)?;
 
         // Draw the blocks
