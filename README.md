@@ -8,32 +8,39 @@ This project was built to demonstrate low-level systems programming concepts, sa
 
 ## 🚀 Features
 
-* **Dynamic Tiling:** Automatically arranges windows in a vertical stack layout to maximize screen real estate.
+* **Dynamic Tiling:** Automatically arranges windows to maximize screen real estate.
+* **Multiple Layouts:** Supports **Master/Stack**, **Vertical Stack**, and **Monocle** layouts.
+* **Workspaces:** Supports 9 virtual desktops with independent window management.
+* **Status Bar:** Built-in lightweight status bar showing active workspaces.
 * **Rust-Safe Interaction:** Uses `x11rb` for safe, Rust-idiomatic wrappers around the XCB library.
 * **Event-Driven Architecture:** Implements a custom event loop to handle `MapRequest`, `DestroyNotify`, and `KeyPress` events efficiently.
-* **Focus Management:** Tracks active window state, handles focus passing upon window destruction, and manages input focus via `XCB`.
-* **Minimalist:** Lightweight and dependency-light.
+* **Smart Focus:** Tracks active window state, handles focus passing upon window destruction, and manages input focus via XCB (even on empty workspaces).
 
 ## 🛠️ Architecture
 
 The codebase is modularized to separate concerns, demonstrating clean software engineering principles:
 
-* **`src/main.rs`**: The entry point. It establishes the X11 connection, grabs the root window, sets up global key bindings (using `GrabKey`), and runs the primary event loop.
-* **`src/state.rs`**: Manages the global state of the window manager. It maintains the list of managed windows (`Vec<Window>`) and the currently focused window (`Option<Window>`). It handles the logic for mapping new windows and transferring focus when a window is closed.
-* **`src/layout.rs`**: Contains pure functional logic for calculating window geometry. It currently implements a vertical tiling algorithm that recalculates window dimensions dynamically whenever the state changes.
+* **`src/main.rs`**: The entry point. It establishes the X11 connection, detects the environment (Wayland vs X11) to auto-configure the Mod key, sets up global key bindings, and runs the primary event loop.
+* **`src/state.rs`**: Manages the global state. It maintains the list of workspaces, focused windows, and handles the logic for mapping new windows and transferring focus.
+* **`src/layout.rs`**: Contains pure functional logic for calculating window geometry (Vertical Stack, Master/Stack, Monocle).
+* **`src/workspace.rs`**: data structures for managing individual workspace state.
+* **`src/bar.rs`**: Handles the rendering of the top status bar using pure X11 drawing primitives (`poly_fill_rectangle`).
 
 ## ⌨️ Controls
 
-**Mod Key:** `Super` (Windows Key)
+**Mod Key:** Auto-detected.
+* **Wayland/Xephyr:** `Alt` (to avoid conflict with host)
+* **Native X11:** `Super` (Windows Key)
 
 | Keybinding | Action |
 | :--- | :--- |
 | **Mod + Enter** | Spawn Terminal (`kitty`) |
-| **Mod + Space** | Change Layout  |
+| **Mod + Space** | Cycle Layout (Master/Stack -> Vertical -> Monocle) |
+| **Mod + J / K** | Cycle Focus (Next / Previous window) |
+| **Mod + 1-9** | Switch to Workspace 1-9 |
+| **Mod + Shift + 1-9** | Move active window to Workspace 1-9 |
 | **Mod + Shift + Q** | Close the focused window |
 | **Mod + Ctrl + Q** | Quit the Window Manager |
-| **Mod + K** | Focus Above Window |
-| **Mod + J** | Focus Below Window |
 
 ## 📦 Prerequisites
 
@@ -68,12 +75,22 @@ The safest way to develop and test the window manager is using **Xephyr**, which
 2.  **Run rwm on that screen:**
     ```bash
     DISPLAY=:1 cargo run
-    ```
+
+### Configuration (Environment Variables)
+
+If you are running inside a nested environment (like Xephyr on Wayland) and need to force a specific modifier key (e.g., using Alt instead of Super), you can set `RWM_MOD`:
+
+```bash
+# Force using ALT key
+RWM_MOD=alt DISPLAY=:1 cargo run
+
+# Force using SUPER key
+RWM_MOD=super DISPLAY=:1 cargo run
 
 ## 🔮 Future Roadmap
 
-* [ ] **Layouts:** Support for Master/Stack and Monocle layouts.
-* [ ] **Workspaces:** Support for multiple virtual desktops.
+* [x] **Layouts:** Support for Master/Stack and Monocle layouts.
+* [x] **Workspaces:** Support for multiple virtual desktops.
 * [ ] **Configuration:** TOML-based configuration file for custom keybinds.
 
 ## 📄 License

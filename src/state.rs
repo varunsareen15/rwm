@@ -131,7 +131,7 @@ impl WindowManager {
             self.set_focus(conn, window)?;
         } else {
             self.focused_window = None;
-            conn.set_input_focus(InputFocus::POINTER_ROOT, x11rb::NONE, 0u32)?;
+            conn.set_input_focus(InputFocus::POINTER_ROOT, self.root, 0u32)?;
         }
 
         self.refresh_layout(conn)?;
@@ -158,7 +158,7 @@ impl WindowManager {
                 self.set_focus(conn, last)?;
             } else {
                 self.focused_window = None;
-                conn.set_input_focus(InputFocus::POINTER_ROOT, x11rb::NONE, 0u32)?;
+                conn.set_input_focus(InputFocus::POINTER_ROOT, self.root, 0u32)?;
             }
             self.refresh_layout(conn)?;
         }

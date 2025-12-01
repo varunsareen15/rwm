@@ -9,6 +9,38 @@ use x11rb::connection::Connection;
 use x11rb::protocol::Event;
 use x11rb::protocol::xproto::{self, ConnectionExt, ModMask};
 
+#[derive(Debug, Clone, Copy)]
+enum ModKey {
+    Super,
+    Alt,
+}
+
+fn detect_mod_key() -> ModKey {
+    use std::env;
+    if let Ok(val) = env::var("RWM_MOD") {
+        match val.to_lowercase().as_str() {
+            "alt" => return ModKey::Alt,
+            "super" | "mod4" => return ModKey::Super,
+            _ => {}
+        }
+    }
+
+    let session_type = env::var("XDG_SESSION_TYPE").unwrap_or_default();
+    let wayland_display = env::var("WAYLAND_DISPLAY").ok();
+
+    if session_type == "wayland" || wayland_display.is_some() {
+        ModKey::Alt
+    } else {
+        ModKey::Super
+    }
+}
+
+fn mod_mask_for(mod_key: ModKey) -> ModMask {
+    match mod_key {
+        ModKey::Super => ModMask::M4,
+        ModKey::Alt => ModMask::M1,
+    }
+}
 // Keysyms
 const XK_RETURN: u32 = 0xff0d;
 const XK_SPACE: u32 = 0x0020;
@@ -36,36 +68,40 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     conn.change_window_attributes(screen.root, &change)?;
 
+    let mod_key = detect_mod_key();
+    let main_mod = mod_mask_for(mod_key);
+    log::info!("Using mod key: {:?}", mod_key);
+
     // --- Setup Keybinds ---
     // We now scan for J and K as well
     let (k_ret, k_space, k_q, k_j, k_k, key_map) = scan_key_codes(&conn)?;
 
     // Grab keys
     if let Some(code) = k_ret {
-        grab_key(&conn, screen.root, code, ModMask::M4)?;
+        grab_key(&conn, screen.root, code, main_mod)?;
     }
 
     if let Some(code) = k_space {
-        grab_key(&conn, screen.root, code, ModMask::M4)?;
+        grab_key(&conn, screen.root, code, main_mod)?;
     }
 
     if let Some(code) = k_q {
-        grab_key(&conn, screen.root, code, ModMask::M4 | ModMask::SHIFT)?;
-        grab_key(&conn, screen.root, code, ModMask::M4 | ModMask::CONTROL)?;
+        grab_key(&conn, screen.root, code, main_mod | ModMask::SHIFT)?;
+        grab_key(&conn, screen.root, code, main_mod | ModMask::CONTROL)?;
     }
 
     if let Some(code) = k_j {
-        grab_key(&conn, screen.root, code, ModMask::M4)?;
+        grab_key(&conn, screen.root, code, main_mod)?;
     }
     if let Some(code) = k_k {
-        grab_key(&conn, screen.root, code, ModMask::M4)?;
+        grab_key(&conn, screen.root, code, main_mod)?;
     }
 
     for &(code, _) in &key_map {
         // Super + # (Switch)
-        grab_key(&conn, screen.root, code, ModMask::M4)?;
+        grab_key(&conn, screen.root, code, main_mod)?;
         // Super + Shift + # (Move Window to ws)
-        grab_key(&conn, screen.root, code, ModMask::M4 | ModMask::SHIFT)?;
+        grab_key(&conn, screen.root, code, main_mod | ModMask::SHIFT)?;
     }
 
     conn.flush()?;
@@ -92,7 +128,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let modifiers = u16::from(evt.state);
                 let key = evt.detail;
 
-                let mod_super = u16::from(ModMask::M4);
+                let mod_super = u16::from(main_mod);
                 let mod_shift = u16::from(ModMask::SHIFT);
                 let mod_ctrl = u16::from(ModMask::CONTROL);
 
@@ -132,19 +168,28 @@ fn grab_key(
     keycode: u8,
     modifiers: ModMask,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    conn.grab_key(
-        true,
-        root,
-        modifiers,
-        keycode,
-        xproto::GrabMode::ASYNC,
-        xproto::GrabMode::ASYNC,
-    )?;
+    let ignored_modifiers = [
+        ModMask::default(),
+        ModMask::M2,
+        ModMask::LOCK,
+        ModMask::M2 | ModMask::LOCK,
+    ];
+
+    for ignored in ignored_modifiers {
+        conn.grab_key(
+            true,
+            root,
+            modifiers | ignored,
+            keycode,
+            xproto::GrabMode::ASYNC,
+            xproto::GrabMode::ASYNC,
+        )?;
+    }
     Ok(())
 }
 
 fn spawn_terminal() {
-    match Command::new("kitty").spawn() {
+    match Command::new("kitty").env_remove("WAYLAND_DISPLAY").spawn() {
         Ok(_) => log::info!("Spawned kitty"),
         Err(e) => log::error!("Failed to spawn kitty: {}", e),
     }
