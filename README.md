@@ -86,7 +86,6 @@ RWM_MOD=alt DISPLAY=:1 cargo run
 
 # Force using SUPER key
 RWM_MOD=super DISPLAY=:1 cargo run
-```
 
 ## 🔮 Future Roadmap
 
