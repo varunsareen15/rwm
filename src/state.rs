@@ -250,7 +250,10 @@ impl WindowManager {
         )
     }
 
-    pub fn promote_focused_to_master<C: Connection>(&mut self, conn: &C) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn promote_focused_to_master<C: Connection>(
+        &mut self,
+        conn: &C,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let active_ws = &mut self.workspaces[self.active_workspace_idx];
         // Need at least 2 active windows to swap anything
         if active_ws.windows.len() < 2 {
@@ -272,7 +275,11 @@ impl WindowManager {
         Ok(())
     }
 
-    pub fn move_focused_window<C: Connection>(&mut self, conn: &C, dir: FocusDirection) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn move_focused_window<C: Connection>(
+        &mut self,
+        conn: &C,
+        dir: FocusDirection,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let active_ws = &mut self.workspaces[self.active_workspace_idx];
         let len = active_ws.windows.len();
 
@@ -284,8 +291,8 @@ impl WindowManager {
             if let Some(pos) = active_ws.windows.iter().position(|&w| w == focused) {
                 // Calculate the new index based on direction
                 let new_pos = match dir {
-                    FocusDirection::Next => (pos + 1) % len,        // Move Down (Wrap to top)
-                    FocusDirection::Prev => (pos + len - 1) % len,  // Move Up (Wrap to bottom)
+                    FocusDirection::Next => (pos + 1) % len, // Move Down (Wrap to top)
+                    FocusDirection::Prev => (pos + len - 1) % len, // Move Up (Wrap to bottom)
                 };
                 // Swap the windows in the vector
                 active_ws.windows.swap(pos, new_pos);
@@ -297,7 +304,10 @@ impl WindowManager {
         Ok(())
     }
 
-    pub fn kill_all_windows<C: Connection>(&self, conn: &C) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn kill_all_windows<C: Connection>(
+        &self,
+        conn: &C,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         log::info!("Killing all managed windows before exit...");
 
         for ws in &self.workspaces {
