@@ -79,6 +79,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Grab keys
     if let Some(code) = k_ret {
         grab_key(&conn, screen.root, code, main_mod)?;
+        grab_key(&conn, screen.root, code, main_mod | ModMask::SHIFT)?;
     }
 
     if let Some(code) = k_space {
@@ -92,9 +93,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if let Some(code) = k_j {
         grab_key(&conn, screen.root, code, main_mod)?;
+        grab_key(&conn, screen.root, code, main_mod | ModMask::SHIFT)?;
     }
     if let Some(code) = k_k {
         grab_key(&conn, screen.root, code, main_mod)?;
+        grab_key(&conn, screen.root, code, main_mod | ModMask::SHIFT)?;
     }
 
     for &(code, _) in &key_map {
@@ -133,17 +136,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let mod_ctrl = u16::from(ModMask::CONTROL);
 
                 if Some(key) == k_ret && (modifiers & mod_super != 0) {
-                    spawn_terminal();
+                    if modifiers & mod_shift != 0 {
+                        wm_state.promote_focused_to_master(&conn)?;
+                    } else {
+                        spawn_terminal();
+                    }
                 } else if Some(key) == k_q {
                     if (modifiers & mod_super != 0) && (modifiers & mod_shift != 0) {
                         wm_state.kill_focused_window(&conn)?;
                     } else if (modifiers & mod_super != 0) && (modifiers & mod_ctrl != 0) {
+                        wm_state.kill_all_windows(&conn)?;
                         break;
                     }
                 } else if Some(key) == k_j && (modifiers & mod_super != 0) {
-                    wm_state.cycle_focus(&conn, state::FocusDirection::Next)?;
+                    if modifiers & mod_shift != 0 {
+                        wm_state.move_focused_window(&conn, state::FocusDirection::Next)?;
+                    } else {
+                        wm_state.cycle_focus(&conn, state::FocusDirection::Next)?;
+                    }
                 } else if Some(key) == k_k && (modifiers & mod_super != 0) {
-                    wm_state.cycle_focus(&conn, state::FocusDirection::Prev)?;
+                    if modifiers & mod_shift != 0 {
+                        wm_state.move_focused_window(&conn, state::FocusDirection::Prev)?;
+                    } else {
+                        wm_state.cycle_focus(&conn, state::FocusDirection::Prev)?;
+                    }
                 } else if Some(key) == k_space && (modifiers & mod_super != 0) {
                     wm_state.cycle_layout(&conn)?;
                 } else if let Some(&(_, ws_index)) = key_map.iter().find(|(code, _)| *code == key) {

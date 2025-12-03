@@ -249,4 +249,64 @@ impl WindowManager {
             self.screen_height,
         )
     }
+
+    pub fn promote_focused_to_master<C: Connection>(&mut self, conn: &C) -> Result<(), Box<dyn std::error::Error>> {
+        let active_ws = &mut self.workspaces[self.active_workspace_idx];
+        // Need at least 2 active windows to swap anything
+        if active_ws.windows.len() < 2 {
+            return Ok(());
+        }
+
+        if let Some(focused) = self.focused_window {
+            if let Some(pos) = active_ws.windows.iter().position(|&w| w == focused) {
+                // If we are not Master (index 0), swap with Master
+                if pos > 0 {
+                    active_ws.windows.swap(0, pos);
+                } else {
+                    // If we are the Master, swap with the top of the stack (index 1).
+                    active_ws.windows.swap(0, 1);
+                }
+                self.refresh_layout(conn)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn move_focused_window<C: Connection>(&mut self, conn: &C, dir: FocusDirection) -> Result<(), Box<dyn std::error::Error>> {
+        let active_ws = &mut self.workspaces[self.active_workspace_idx];
+        let len = active_ws.windows.len();
+
+        if len < 2 {
+            return Ok(());
+        }
+
+        if let Some(focused) = self.focused_window {
+            if let Some(pos) = active_ws.windows.iter().position(|&w| w == focused) {
+                // Calculate the new index based on direction
+                let new_pos = match dir {
+                    FocusDirection::Next => (pos + 1) % len,        // Move Down (Wrap to top)
+                    FocusDirection::Prev => (pos + len - 1) % len,  // Move Up (Wrap to bottom)
+                };
+                // Swap the windows in the vector
+                active_ws.windows.swap(pos, new_pos);
+
+                // Refresh layout to reflect the new order
+                self.refresh_layout(conn)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn kill_all_windows<C: Connection>(&self, conn: &C) -> Result<(), Box<dyn std::error::Error>> {
+        log::info!("Killing all managed windows before exit...");
+
+        for ws in &self.workspaces {
+            for &window in &ws.windows {
+                let _ = conn.kill_client(window);
+            }
+        }
+
+        conn.get_input_focus()?.reply()?;
+        Ok(())
+    }
 }
