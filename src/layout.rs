@@ -2,6 +2,7 @@ use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{ConfigureWindowAux, ConnectionExt, Window};
 
 const TOP_GAP: u16 = 20; // pixels reserved for bar
+const BORDER_WIDTH: u16 = 0;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Layout {
@@ -43,21 +44,24 @@ pub fn tile_vertical_stack<C: Connection>(
     let mut y_offset = TOP_GAP;
 
     for (i, &window) in windows.iter().enumerate() {
-        let height = if i == (num_windows - 1) as usize {
+        let slot_height = if i == (num_windows - 1) as usize {
             (usable_height + TOP_GAP) - y_offset
         } else {
             height_per_window
         };
 
+        let final_width = (screen_width as u32).saturating_sub((2 * BORDER_WIDTH) as u32);
+        let final_height = (slot_height as u32).saturating_sub((2 * BORDER_WIDTH) as u32);
+
         let changes = ConfigureWindowAux::new()
             .x(0)
             .y(y_offset as i32)
-            .width(screen_width as u32)
-            .height(height as u32)
-            .border_width(1);
+            .width(final_width)
+            .height(final_height)
+            .border_width(BORDER_WIDTH as u32);
 
         conn.configure_window(window, &changes)?;
-        y_offset += height;
+        y_offset += slot_height;
     }
     Ok(())
 }
@@ -83,13 +87,16 @@ pub fn tile_master_stack<C: Connection>(
     let master_width = (screen_width as f32 * master_ratio) as u16;
     let stack_width = screen_width - master_width;
 
+    let master_final_w = (master_width as u32).saturating_sub((2 * BORDER_WIDTH) as u32);
+    let master_final_h = (usable_height as u32).saturating_sub((2 * BORDER_WIDTH) as u32);
+
     // Configure the Master Window (Index 0)
     let master_changes = ConfigureWindowAux::new()
         .x(0)
-        .y(0)
-        .width(master_width as u32)
-        .height(usable_height as u32)
-        .border_width(1);
+        .y(TOP_GAP as i32)
+        .width(master_final_w)
+        .height(master_final_h)
+        .border_width(BORDER_WIDTH as u32);
 
     conn.configure_window(windows[0], &master_changes)?;
 
@@ -97,24 +104,27 @@ pub fn tile_master_stack<C: Connection>(
     let stack_windows = &windows[1..];
     let num_stack = stack_windows.len() as u16;
     let height_per_stack = usable_height / num_stack;
-    let mut y_offset = 0;
+    let mut y_offset = TOP_GAP;
+    let stack_final_w = (stack_width as u32).saturating_sub((2 * BORDER_WIDTH) as u32);
 
     for (i, &window) in stack_windows.iter().enumerate() {
-        let height = if i == (num_stack - 1) as usize {
+        let slot_height = if i == (num_stack - 1) as usize {
             (usable_height + TOP_GAP) - y_offset
         } else {
             height_per_stack
         };
 
+        let stack_final_h = (slot_height as u32).saturating_sub((2 * BORDER_WIDTH) as u32);
+
         let changes = ConfigureWindowAux::new()
             .x(master_width as i32)
             .y(y_offset as i32)
-            .width(stack_width as u32)
-            .height(height as u32)
-            .border_width(1);
+            .width(stack_final_w)
+            .height(stack_final_h)
+            .border_width(BORDER_WIDTH as u32);
 
         conn.configure_window(window, &changes)?;
-        y_offset += height;
+        y_offset += slot_height;
     }
     Ok(())
 }
