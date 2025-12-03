@@ -35,8 +35,10 @@ The codebase is modularized to separate concerns, demonstrating clean software e
 | Keybinding | Action |
 | :--- | :--- |
 | **Mod + Enter** | Spawn Terminal (`kitty`) |
+| **Mod + Shift + Enter** | Promote focused window to Master |
 | **Mod + Space** | Cycle Layout (Master/Stack -> Vertical -> Monocle) |
 | **Mod + J / K** | Cycle Focus (Next / Previous window) |
+| **Mod + Shift + J / K** | Swap Window Up/Down |
 | **Mod + 1-9** | Switch to Workspace 1-9 |
 | **Mod + Shift + 1-9** | Move active window to Workspace 1-9 |
 | **Mod + Shift + Q** | Close the focused window |
