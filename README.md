@@ -35,6 +35,7 @@ The codebase is modularized to separate concerns, demonstrating clean software e
 | Keybinding | Action |
 | :--- | :--- |
 | **Mod + Enter** | Spawn Terminal (`kitty`) |
+| **Mod + P** | Run Launcher (`dmenu`) |
 | **Mod + Shift + Enter** | Promote focused window to Master |
 | **Mod + Space** | Cycle Layout (Master/Stack -> Vertical -> Monocle) |
 | **Mod + J / K** | Cycle Focus (Next / Previous window) |
@@ -52,17 +53,18 @@ To build and run **rwm**, you need:
 * **X11 Development Libraries** (libxcb)
 * **Xephyr** (For safe testing inside a nested window)
 * **Kitty** (Default terminal emulator)
+* **dmenu** (Application launcher)
 
 ### NixOS Setup (Recommended)
 If you are on NixOS, you can enter a shell with all dependencies available:
 
 ```bash
-nix-shell -p cargo xorg.libxcb xorg.xorgserver kitty
+nix-shell -p cargo xorg.libxcb xorg.xorgserver kitty dmenu
 ```
 
 ### Ubuntu/Debian Setup
 ```bash
-sudo apt install build-essential libxcb-shape0-dev libxcb-xfixes0-dev xserver-xephyr kitty
+sudo apt install build-essential libxcb-shape0-dev libxcb-xfixes0-dev xserver-xephyr kitty suckless-tools
 ```
 
 ## 🏃‍♂️ How to Run (Development)
