@@ -47,6 +47,7 @@ const XK_SPACE: u32 = 0x0020;
 const XK_Q: u32 = 0x0071;
 const XK_J: u32 = 0x006a;
 const XK_K: u32 = 0x006b;
+const XK_P: u32 = 0x0070;
 const XK_1: u32 = 0x0031;
 const XK_9: u32 = 0x0039;
 
@@ -74,7 +75,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // --- Setup Keybinds ---
     // We now scan for J and K as well
-    let (k_ret, k_space, k_q, k_j, k_k, key_map) = scan_key_codes(&conn)?;
+    let (k_ret, k_space, k_q, k_j, k_k, k_p, key_map) = scan_key_codes(&conn)?;
 
     // Grab keys
     if let Some(code) = k_ret {
@@ -98,6 +99,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(code) = k_k {
         grab_key(&conn, screen.root, code, main_mod)?;
         grab_key(&conn, screen.root, code, main_mod | ModMask::SHIFT)?;
+    }
+    
+    if let Some(code) = k_p {
+        grab_key(&conn, screen.root, code, main_mod)?;
     }
 
     for &(code, _) in &key_map {
@@ -160,6 +165,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     } else {
                         wm_state.cycle_focus(&conn, state::FocusDirection::Prev)?;
                     }
+                } else if Some(key) == k_p && (modifiers & mod_super != 0) {
+                    spawn("dmenu_run");
                 } else if Some(key) == k_space && (modifiers & mod_super != 0) {
                     wm_state.cycle_layout(&conn)?;
                 } else if let Some(&(_, ws_index)) = key_map.iter().find(|(code, _)| *code == key) {
@@ -211,16 +218,24 @@ fn spawn_terminal() {
     }
 }
 
+fn spawn(command: &str) {
+    match Command::new(command).env_remove("WAYLAND_DISPLAY").env_remove("GDK_BACKEND").env_remove("QT_QPA_PLATFORM").spawn() {
+        Ok(_) => log::info!("Spawned {}", command),
+        Err(e) => log::error!("Failed to open {}: {}", command, e),
+    }
+}
+
 // Updated to return 4 keys
 fn scan_key_codes(
     conn: &impl Connection,
 ) -> Result<
     (
-        Option<u8>,
-        Option<u8>,
-        Option<u8>,
-        Option<u8>,
-        Option<u8>,
+        Option<u8>, // Return
+        Option<u8>, // Space
+        Option<u8>, // J
+        Option<u8>, // K
+        Option<u8>, // Q
+        Option<u8>, // P
         Vec<(u8, usize)>,
     ),
     Box<dyn std::error::Error>,
@@ -239,6 +254,7 @@ fn scan_key_codes(
     let mut k_q = None;
     let mut k_j = None;
     let mut k_k = None;
+    let mut k_p = None;
     let mut key_map = Vec::new(); // Stores (keycode, ws_idx)
 
     for (i, code) in (min_keycode..=max_keycode).enumerate() {
@@ -259,6 +275,9 @@ fn scan_key_codes(
             if sym == XK_K && k_k.is_none() {
                 k_k = Some(code);
             }
+            if sym == XK_P && k_p.is_none() {
+                k_p = Some(code);
+            }
             if sym >= XK_1 && sym <= XK_9 {
                 let ws_index = (sym - XK_1) as usize;
                 key_map.push((code, ws_index));
@@ -266,5 +285,5 @@ fn scan_key_codes(
         }
     }
 
-    Ok((k_ret, k_space, k_q, k_j, k_k, key_map))
+    Ok((k_ret, k_space, k_q, k_j, k_k, k_p, key_map))
 }
