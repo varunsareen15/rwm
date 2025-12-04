@@ -100,7 +100,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         grab_key(&conn, screen.root, code, main_mod)?;
         grab_key(&conn, screen.root, code, main_mod | ModMask::SHIFT)?;
     }
-    
+
     if let Some(code) = k_p {
         grab_key(&conn, screen.root, code, main_mod)?;
     }
@@ -219,7 +219,15 @@ fn spawn_terminal() {
 }
 
 fn spawn(command: &str) {
-    match Command::new(command).env_remove("WAYLAND_DISPLAY").env_remove("GDK_BACKEND").env_remove("QT_QPA_PLATFORM").spawn() {
+    match Command::new(command)
+        .env_remove("WAYLAND_DISPLAY")
+        .env("XDG_SESSION_TYPE", "x11")
+        .env("GDK_BACKEND", "x11")
+        .env("QT_QPA_PLATFORM", "xcb")
+        .env("MOZ_ENABLE_WAYLAND", "0")
+        .env("ELECTRON_OZONE_PLATFORM_HINT", "auto")
+        .spawn()
+    {
         Ok(_) => log::info!("Spawned {}", command),
         Err(e) => log::error!("Failed to open {}: {}", command, e),
     }
