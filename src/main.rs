@@ -144,7 +144,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     if modifiers & mod_shift != 0 {
                         wm_state.promote_focused_to_master(&conn)?;
                     } else {
-                        spawn_terminal();
+                        spawn("kitty");
                     }
                 } else if Some(key) == k_q {
                     if (modifiers & mod_super != 0) && (modifiers & mod_shift != 0) {
@@ -209,13 +209,6 @@ fn grab_key(
         )?;
     }
     Ok(())
-}
-
-fn spawn_terminal() {
-    match Command::new("kitty").env_remove("WAYLAND_DISPLAY").spawn() {
-        Ok(_) => log::info!("Spawned kitty"),
-        Err(e) => log::error!("Failed to spawn kitty: {}", e),
-    }
 }
 
 fn spawn(command: &str) {
