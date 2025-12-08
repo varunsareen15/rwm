@@ -63,6 +63,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         screen.height_in_pixels
     );
 
+    setup_cursor(&conn, screen)?;
+
     let change = xproto::ChangeWindowAttributesAux::new().event_mask(
         xproto::EventMask::SUBSTRUCTURE_REDIRECT | xproto::EventMask::SUBSTRUCTURE_NOTIFY,
     );
@@ -290,4 +292,23 @@ fn scan_key_codes(
     }
 
     Ok((k_ret, k_space, k_q, k_j, k_k, k_p, key_map))
+}
+
+fn setup_cursor(
+    conn: &impl Connection,
+    screen: &xproto::Screen,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let font_id = conn.generate_id()?;
+    conn.open_font(font_id, b"cursor")?;
+
+    let cursor_id = conn.generate_id()?;
+
+    conn.create_glyph_cursor(
+        cursor_id, font_id, font_id, 68, 69, 0, 0, 0, 65535, 65535, 65535,
+    )?;
+
+    let changes = xproto::ChangeWindowAttributesAux::new().cursor(cursor_id);
+    conn.change_window_attributes(screen.root, &changes)?;
+    conn.close_font(font_id)?;
+    Ok(())
 }
