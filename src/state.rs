@@ -3,7 +3,8 @@ use crate::layout::{self, Layout};
 use crate::workspace::Workspace;
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{
-    ConfigureWindowAux, ConnectionExt, ExposeEvent, InputFocus, Screen, StackMode, Window,
+    ChangeWindowAttributesAux, ConfigureWindowAux, ConnectionExt, EnterNotifyEvent, EventMask,
+    ExposeEvent, InputFocus, NotifyDetail, NotifyMode, Screen, StackMode, Window,
 };
 
 pub enum FocusDirection {
@@ -55,6 +56,11 @@ impl WindowManager {
         if !active_ws.windows.contains(&window) {
             active_ws.windows.push(window);
         }
+
+        let changes = ChangeWindowAttributesAux::new()
+            .event_mask(EventMask::ENTER_WINDOW | EventMask::STRUCTURE_NOTIFY);
+        conn.change_window_attributes(window, &changes)?;
+
         conn.map_window(window)?;
         // Focus the new window
         self.set_focus(conn, window)?;
@@ -72,6 +78,22 @@ impl WindowManager {
         if event.window == self.bar.window {
             self.bar
                 .draw(conn, self.active_workspace_idx, self.workspaces.len())?;
+        }
+        Ok(())
+    }
+
+    pub fn handle_enter_notify<C: Connection>(
+        &mut self,
+        conn: &C,
+        event: EnterNotifyEvent,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        if event.mode != NotifyMode::NORMAL || event.detail == NotifyDetail::INFERIOR {
+            return Ok(());
+        }
+
+        let active_ws = &self.workspaces[self.active_workspace_idx];
+        if active_ws.windows.contains(&event.event) {
+            self.set_focus(conn, event.event)?;
         }
         Ok(())
     }
