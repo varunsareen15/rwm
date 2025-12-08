@@ -1,7 +1,6 @@
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{ConfigureWindowAux, ConnectionExt, Window};
 
-const TOP_GAP: u16 = 20; // pixels reserved for bar
 const BORDER_WIDTH: u16 = 0;
 
 #[derive(Debug, Clone, Copy)]
@@ -18,13 +17,18 @@ pub fn apply_layout<C: Connection>(
     windows: &[Window],
     screen_width: u16,
     screen_height: u16,
+    top_gap: u16,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let usable_height = screen_height - TOP_GAP;
+    let usable_height = screen_height - top_gap;
 
     match layout_kind {
-        Layout::VerticalStack => tile_vertical_stack(conn, windows, screen_width, usable_height),
-        Layout::MasterStack => tile_master_stack(conn, windows, screen_width, usable_height),
-        Layout::Monocle => tile_monocle(conn, windows, screen_width, usable_height),
+        Layout::VerticalStack => {
+            tile_vertical_stack(conn, windows, screen_width, usable_height, top_gap)
+        }
+        Layout::MasterStack => {
+            tile_master_stack(conn, windows, screen_width, usable_height, top_gap)
+        }
+        Layout::Monocle => tile_monocle(conn, windows, screen_width, usable_height, top_gap),
     }
 }
 
@@ -33,6 +37,7 @@ pub fn tile_vertical_stack<C: Connection>(
     windows: &[Window],
     screen_width: u16,
     usable_height: u16,
+    top_gap: u16,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let num_windows = windows.len() as u16;
 
@@ -41,11 +46,11 @@ pub fn tile_vertical_stack<C: Connection>(
     }
 
     let height_per_window = usable_height / num_windows;
-    let mut y_offset = TOP_GAP;
+    let mut y_offset = top_gap;
 
     for (i, &window) in windows.iter().enumerate() {
         let slot_height = if i == (num_windows - 1) as usize {
-            (usable_height + TOP_GAP) - y_offset
+            (usable_height + top_gap) - y_offset
         } else {
             height_per_window
         };
@@ -71,6 +76,7 @@ pub fn tile_master_stack<C: Connection>(
     windows: &[Window],
     screen_width: u16,
     usable_height: u16,
+    top_gap: u16,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let num_windows = windows.len();
     if num_windows == 0 {
@@ -79,7 +85,7 @@ pub fn tile_master_stack<C: Connection>(
 
     // If only one window, it takes the full screen
     if num_windows == 1 {
-        return tile_vertical_stack(conn, windows, screen_width, usable_height);
+        return tile_vertical_stack(conn, windows, screen_width, usable_height, top_gap);
     }
 
     // Parameters
@@ -93,7 +99,7 @@ pub fn tile_master_stack<C: Connection>(
     // Configure the Master Window (Index 0)
     let master_changes = ConfigureWindowAux::new()
         .x(0)
-        .y(TOP_GAP as i32)
+        .y(top_gap as i32)
         .width(master_final_w)
         .height(master_final_h)
         .border_width(BORDER_WIDTH as u32);
@@ -104,12 +110,12 @@ pub fn tile_master_stack<C: Connection>(
     let stack_windows = &windows[1..];
     let num_stack = stack_windows.len() as u16;
     let height_per_stack = usable_height / num_stack;
-    let mut y_offset = TOP_GAP;
+    let mut y_offset = top_gap;
     let stack_final_w = (stack_width as u32).saturating_sub((2 * BORDER_WIDTH) as u32);
 
     for (i, &window) in stack_windows.iter().enumerate() {
         let slot_height = if i == (num_stack - 1) as usize {
-            (usable_height + TOP_GAP) - y_offset
+            (usable_height + top_gap) - y_offset
         } else {
             height_per_stack
         };
@@ -134,11 +140,12 @@ fn tile_monocle<C: Connection>(
     windows: &[Window],
     screen_width: u16,
     usable_height: u16,
+    top_gap: u16,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Every Window gets full screen dimensions
     let changes = ConfigureWindowAux::new()
         .x(0)
-        .y(TOP_GAP as i32)
+        .y(top_gap as i32)
         .width(screen_width as u32)
         .height(usable_height as u32)
         .border_width(0);

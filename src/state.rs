@@ -16,10 +16,11 @@ pub struct WindowManager {
     workspaces: Vec<Workspace>,
     active_workspace_idx: usize,
     focused_window: Option<Window>,
-    bar: Bar,
+    pub bar: Bar,
     screen_width: u16,
     screen_height: u16,
     root: Window,
+    current_top_gap: u16,
 }
 
 impl WindowManager {
@@ -43,6 +44,7 @@ impl WindowManager {
             screen_width: screen.width_in_pixels,
             screen_height: screen.height_in_pixels,
             root: screen.root,
+            current_top_gap: 20,
         })
     }
 
@@ -269,6 +271,7 @@ impl WindowManager {
             &active_ws.windows,
             self.screen_width,
             self.screen_height,
+            self.current_top_gap,
         )
     }
 
@@ -339,6 +342,29 @@ impl WindowManager {
         }
 
         conn.get_input_focus()?.reply()?;
+        Ok(())
+    }
+
+    pub fn toggle_bar<C: Connection>(
+        &mut self,
+        conn: &C,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        if self.current_top_gap > 0 {
+            self.current_top_gap = 0;
+            conn.unmap_window(self.bar.window)?;
+        } else {
+            self.current_top_gap = 20;
+            conn.map_window(self.bar.window)?;
+            self.bar.draw(conn, self.active_workspace_idx, self.workspaces.len())?;
+        }
+        self.refresh_layout(conn)?;
+        Ok(())
+    }
+
+    pub fn handle_bar_click<C: Connection>(&mut self, conn: &C, x: i16) -> Result<(), Box<dyn std::error::Error>> {
+        if let Some(ws_idx) = self.bar.get_clicked_workspace(x) {
+            self.switch_workspace(conn, ws_idx)?;
+        }
         Ok(())
     }
 }

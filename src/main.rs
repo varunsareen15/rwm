@@ -48,6 +48,7 @@ const XK_Q: u32 = 0x0071;
 const XK_J: u32 = 0x006a;
 const XK_K: u32 = 0x006b;
 const XK_P: u32 = 0x0070;
+const XK_B: u32 = 0x0062;
 const XK_1: u32 = 0x0031;
 const XK_9: u32 = 0x0039;
 
@@ -77,7 +78,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // --- Setup Keybinds ---
     // We now scan for J and K as well
-    let (k_ret, k_space, k_q, k_j, k_k, k_p, key_map) = scan_key_codes(&conn)?;
+    let (k_ret, k_space, k_q, k_j, k_k, k_p, k_b, key_map) = scan_key_codes(&conn)?;
 
     // Grab keys
     if let Some(code) = k_ret {
@@ -104,6 +105,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     if let Some(code) = k_p {
+        grab_key(&conn, screen.root, code, main_mod)?;
+    }
+
+    if let Some(code) = k_b {
         grab_key(&conn, screen.root, code, main_mod)?;
     }
 
@@ -136,6 +141,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             Event::EnterNotify(evt) => {
                 wm_state.handle_enter_notify(&conn, evt)?;
+            }
+            Event::ButtonPress(evt) => {
+                if evt.event == wm_state.bar.window {
+                    wm_state.handle_bar_click(&conn, evt.event_x)?;
+                }
             }
             Event::KeyPress(evt) => {
                 let modifiers = u16::from(evt.state);
@@ -172,6 +182,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 } else if Some(key) == k_p && (modifiers & mod_super != 0) {
                     spawn("dmenu_run");
+                } else if Some(key) == k_b && (modifiers & mod_super != 0) {
+                    wm_state.toggle_bar(&conn)?;
                 } else if Some(key) == k_space && (modifiers & mod_super != 0) {
                     wm_state.cycle_layout(&conn)?;
                 } else if let Some(&(_, ws_index)) = key_map.iter().find(|(code, _)| *code == key) {
@@ -242,6 +254,7 @@ fn scan_key_codes(
         Option<u8>, // K
         Option<u8>, // Q
         Option<u8>, // P
+        Option<u8>, // B
         Vec<(u8, usize)>,
     ),
     Box<dyn std::error::Error>,
@@ -261,6 +274,7 @@ fn scan_key_codes(
     let mut k_j = None;
     let mut k_k = None;
     let mut k_p = None;
+    let mut k_b = None;
     let mut key_map = Vec::new(); // Stores (keycode, ws_idx)
 
     for (i, code) in (min_keycode..=max_keycode).enumerate() {
@@ -284,6 +298,9 @@ fn scan_key_codes(
             if sym == XK_P && k_p.is_none() {
                 k_p = Some(code);
             }
+            if sym == XK_B && k_b.is_none() {
+                k_b = Some(code);
+            }
             if sym >= XK_1 && sym <= XK_9 {
                 let ws_index = (sym - XK_1) as usize;
                 key_map.push((code, ws_index));
@@ -291,7 +308,7 @@ fn scan_key_codes(
         }
     }
 
-    Ok((k_ret, k_space, k_q, k_j, k_k, k_p, key_map))
+    Ok((k_ret, k_space, k_q, k_j, k_k, k_p, k_b, key_map))
 }
 
 fn setup_cursor(

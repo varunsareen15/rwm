@@ -106,4 +106,22 @@ impl Bar {
 
         Ok(())
     }
+
+    pub fn get_clicked_workspace(&self, x: i16) -> Option<usize> {
+        let block_size = 14;
+        let gap = 4;
+        let start_x = 10;
+
+        if x < start_x {
+            return None;
+        }
+
+        let index = (x - start_x) / (block_size + gap);
+
+        if index >= 0 && index < 9 {
+            Some(index as usize)
+        } else {
+            None
+        }
+    }
 }
