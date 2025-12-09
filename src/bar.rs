@@ -1,7 +1,7 @@
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{
-    ConfigureWindowAux, ConnectionExt, CreateWindowAux, Gcontext, Rectangle, Screen, StackMode,
-    Window, WindowClass,
+    ConfigureWindowAux, ConnectionExt, CreateWindowAux, EventMask, Gcontext, Rectangle, Screen,
+    StackMode, Window, WindowClass,
 };
 
 pub struct Bar {
@@ -25,7 +25,7 @@ impl Bar {
         let win_aux = CreateWindowAux::new()
             .background_pixel(screen.black_pixel)
             .override_redirect(1) // Tell WM to ignore this window
-            .event_mask(x11rb::protocol::xproto::EventMask::EXPOSURE);
+            .event_mask(EventMask::EXPOSURE | EventMask::BUTTON_PRESS);
 
         conn.create_window(
             screen.root_depth,
