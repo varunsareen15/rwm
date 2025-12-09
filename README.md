@@ -9,9 +9,10 @@ This project was built to demonstrate low-level systems programming concepts, sa
 ## 🚀 Features
 
 * **Dynamic Tiling:** Automatically arranges windows to maximize screen real estate.
+* **Focus Follows Mouse:** Window focus changes instantly as you hover the mouse over windows.
+* **Interactive Status Bar:** Clickable workspace indicators to switch tags, with `Mod + B` toggle visibility.
 * **Multiple Layouts:** Supports **Master/Stack**, **Vertical Stack**, and **Monocle** layouts.
 * **Workspaces:** Supports 9 virtual desktops with independent window management.
-* **Status Bar:** Built-in lightweight status bar showing active workspaces.
 * **Rust-Safe Interaction:** Uses `x11rb` for safe, Rust-idiomatic wrappers around the XCB library.
 * **Event-Driven Architecture:** Implements a custom event loop to handle `MapRequest`, `DestroyNotify`, and `KeyPress` events efficiently.
 * **Smart Focus:** Tracks active window state, handles focus passing upon window destruction, and manages input focus via XCB (even on empty workspaces).
@@ -40,6 +41,7 @@ The codebase is modularized to separate concerns, demonstrating clean software e
 | **Mod + Space** | Cycle Layout (Master/Stack -> Vertical -> Monocle) |
 | **Mod + J / K** | Cycle Focus (Next / Previous window) |
 | **Mod + Shift + J / K** | Swap Window Up/Down |
+| **Mod + B** | Toggle Status Bar |
 | **Mod + 1-9** | Switch to Workspace 1-9 |
 | **Mod + Shift + 1-9** | Move active window to Workspace 1-9 |
 | **Mod + Shift + Q** | Close the focused window |
