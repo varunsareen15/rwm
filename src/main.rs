@@ -51,6 +51,8 @@ const XK_P: u32 = 0x0070;
 const XK_B: u32 = 0x0062;
 const XK_1: u32 = 0x0031;
 const XK_9: u32 = 0x0039;
+const XK_MINUS: u32 = 0x002d;
+const XK_BACKSLASH: u32 = 0x005c;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
@@ -78,7 +80,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // --- Setup Keybinds ---
     // We now scan for J and K as well
-    let (k_ret, k_space, k_q, k_j, k_k, k_p, k_b, key_map) = scan_key_codes(&conn)?;
+    let (k_ret, k_space, k_q, k_j, k_k, k_p, k_b, k_minus, k_backslash, key_map) =
+        scan_key_codes(&conn)?;
 
     // Grab keys
     if let Some(code) = k_ret {
@@ -110,6 +113,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if let Some(code) = k_b {
         grab_key(&conn, screen.root, code, main_mod)?;
+    }
+
+    if let Some(code) = k_minus {
+        grab_key(&conn, screen.root, code, main_mod)?;
+    }
+    if let Some(code) = k_backslash {
+        grab_key(&conn, screen.root, code, main_mod | ModMask::SHIFT)?;
     }
 
     for &(code, _) in &key_map {
@@ -184,6 +194,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     spawn("dmenu_run");
                 } else if Some(key) == k_b && (modifiers & mod_super != 0) {
                     wm_state.toggle_bar(&conn)?;
+                } else if Some(key) == k_minus && (modifiers & mod_super != 0) {
+                    wm_state.set_split_direction(workspace::SplitAxis::Horizontal);
+                } else if Some(key) == k_backslash
+                    && (modifiers & mod_super != 0)
+                    && (modifiers & mod_shift != 0)
+                {
+                    wm_state.set_split_direction(workspace::SplitAxis::Vertical);
                 } else if Some(key) == k_space && (modifiers & mod_super != 0) {
                     wm_state.cycle_layout(&conn)?;
                 } else if let Some(&(_, ws_index)) = key_map.iter().find(|(code, _)| *code == key) {
@@ -255,6 +272,8 @@ fn scan_key_codes(
         Option<u8>, // Q
         Option<u8>, // P
         Option<u8>, // B
+        Option<u8>, // Minus
+        Option<u8>, // Backslash
         Vec<(u8, usize)>,
     ),
     Box<dyn std::error::Error>,
@@ -275,6 +294,8 @@ fn scan_key_codes(
     let mut k_k = None;
     let mut k_p = None;
     let mut k_b = None;
+    let mut k_minus = None;
+    let mut k_backslash = None;
     let mut key_map = Vec::new(); // Stores (keycode, ws_idx)
 
     for (i, code) in (min_keycode..=max_keycode).enumerate() {
@@ -301,6 +322,12 @@ fn scan_key_codes(
             if sym == XK_B && k_b.is_none() {
                 k_b = Some(code);
             }
+            if sym == XK_MINUS && k_minus.is_none() {
+                k_minus = Some(code);
+            }
+            if sym == XK_BACKSLASH && k_backslash.is_none() {
+                k_backslash = Some(code);
+            }
             if sym >= XK_1 && sym <= XK_9 {
                 let ws_index = (sym - XK_1) as usize;
                 key_map.push((code, ws_index));
@@ -308,7 +335,18 @@ fn scan_key_codes(
         }
     }
 
-    Ok((k_ret, k_space, k_q, k_j, k_k, k_p, k_b, key_map))
+    Ok((
+        k_ret,
+        k_space,
+        k_q,
+        k_j,
+        k_k,
+        k_p,
+        k_b,
+        k_minus,
+        k_backslash,
+        key_map,
+    ))
 }
 
 fn setup_cursor(

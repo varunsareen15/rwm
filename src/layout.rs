@@ -1,3 +1,4 @@
+use crate::workspace::SplitAxis;
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{ConfigureWindowAux, ConnectionExt, Window};
 
@@ -8,6 +9,7 @@ pub enum Layout {
     VerticalStack, // Every window same height
     MasterStack,   // One Master on left, stack on right
     Monocle,       // Every window takes whole screen, stacked on top of each other
+    Dwindle,       // Fibonacci layout but manual selection of where next window opens
 }
 
 // Main entry point that dispatches to specific layout functions
@@ -18,10 +20,19 @@ pub fn apply_layout<C: Connection>(
     screen_width: u16,
     screen_height: u16,
     top_gap: u16,
+    split_history: &[SplitAxis],
 ) -> Result<(), Box<dyn std::error::Error>> {
     let usable_height = screen_height - top_gap;
 
     match layout_kind {
+        Layout::Dwindle => tile_dwindle(
+            conn,
+            windows,
+            screen_width,
+            usable_height,
+            top_gap,
+            split_history,
+        ),
         Layout::VerticalStack => {
             tile_vertical_stack(conn, windows, screen_width, usable_height, top_gap)
         }
@@ -152,6 +163,75 @@ fn tile_monocle<C: Connection>(
 
     for &window in windows {
         conn.configure_window(window, &changes)?;
+    }
+    Ok(())
+}
+
+pub fn tile_dwindle<C: Connection>(
+    conn: &C,
+    windows: &[Window],
+    screen_width: u16,
+    usable_height: u16,
+    top_gap: u16,
+    split_history: &[SplitAxis],
+) -> Result<(), Box<dyn std::error::Error>> {
+    let num_windows = windows.len();
+    if num_windows == 0 {
+        return Ok(());
+    }
+
+    let mut x = 0;
+    let mut y = top_gap as i32;
+    let mut width = screen_width as u32;
+    let mut height = usable_height as u32;
+
+    for (i, &window) in windows.iter().enumerate() {
+        if i == num_windows - 1 {
+            let final_w = width.saturating_sub((2 * BORDER_WIDTH) as u32);
+            let final_h = height.saturating_sub((2 * BORDER_WIDTH) as u32);
+            let changes = ConfigureWindowAux::new()
+                .x(x)
+                .y(y)
+                .width(final_w)
+                .height(final_h)
+                .border_width(BORDER_WIDTH as u32);
+            conn.configure_window(window, &changes)?;
+        } else {
+            let axis = if i < split_history.len() {
+                split_history[i]
+            } else {
+                SplitAxis::Vertical
+            };
+
+            let (w, h) = match axis {
+                SplitAxis::Horizontal => {
+                    let split_w = width / 2;
+                    width -= split_w;
+                    (split_w, height)
+                }
+                SplitAxis::Vertical => {
+                    let split_h = height / 2;
+                    height -= split_h;
+                    (width, split_h)
+                }
+            };
+
+            let final_w = w.saturating_sub((2 * BORDER_WIDTH) as u32);
+            let final_h = h.saturating_sub((2 * BORDER_WIDTH) as u32);
+
+            let changes = ConfigureWindowAux::new()
+                .x(x)
+                .y(y)
+                .width(final_w)
+                .height(final_h)
+                .border_width(BORDER_WIDTH as u32);
+            conn.configure_window(window, &changes)?;
+
+            match axis {
+                SplitAxis::Horizontal => x += w as i32,
+                SplitAxis::Vertical => y += h as i32,
+            }
+        }
     }
     Ok(())
 }

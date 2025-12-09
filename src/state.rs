@@ -1,6 +1,6 @@
 use crate::bar::Bar;
 use crate::layout::{self, Layout};
-use crate::workspace::Workspace;
+use crate::workspace::{SplitAxis, Workspace};
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{
     ChangeWindowAttributesAux, ConfigureWindowAux, ConnectionExt, EnterNotifyEvent, EventMask,
@@ -21,6 +21,7 @@ pub struct WindowManager {
     screen_height: u16,
     root: Window,
     current_top_gap: u16,
+    pending_split: SplitAxis,
 }
 
 impl WindowManager {
@@ -45,6 +46,7 @@ impl WindowManager {
             screen_height: screen.height_in_pixels,
             root: screen.root,
             current_top_gap: 20,
+            pending_split: SplitAxis::Vertical,
         })
     }
 
@@ -57,6 +59,7 @@ impl WindowManager {
 
         if !active_ws.windows.contains(&window) {
             active_ws.windows.push(window);
+            active_ws.split_history.push(self.pending_split);
         }
 
         let changes = ChangeWindowAttributesAux::new()
@@ -109,6 +112,9 @@ impl WindowManager {
         // Find if the destroyed window was in our list
         if let Some(pos) = active_ws.windows.iter().position(|&w| w == window) {
             active_ws.windows.remove(pos);
+            if pos < active_ws.split_history.len() {
+                active_ws.split_history.remove(pos);
+            }
             // If the destroyed window was the one with focus...
             if self.focused_window == Some(window) {
                 // ...try to focus the previous window in the list (or the last one)
@@ -196,7 +202,8 @@ impl WindowManager {
         let active_ws = &mut self.workspaces[self.active_workspace_idx];
         active_ws.layout = match active_ws.layout {
             Layout::MasterStack => Layout::VerticalStack,
-            Layout::VerticalStack => Layout::Monocle,
+            Layout::VerticalStack => Layout::Dwindle,
+            Layout::Dwindle => Layout::Monocle,
             Layout::Monocle => Layout::MasterStack,
         };
         // Changing layout might require restacking so refocus to ensure focused window stays on
@@ -272,6 +279,7 @@ impl WindowManager {
             self.screen_width,
             self.screen_height,
             self.current_top_gap,
+            &active_ws.split_history,
         )
     }
 
@@ -355,16 +363,26 @@ impl WindowManager {
         } else {
             self.current_top_gap = 20;
             conn.map_window(self.bar.window)?;
-            self.bar.draw(conn, self.active_workspace_idx, self.workspaces.len())?;
+            self.bar
+                .draw(conn, self.active_workspace_idx, self.workspaces.len())?;
         }
         self.refresh_layout(conn)?;
         Ok(())
     }
 
-    pub fn handle_bar_click<C: Connection>(&mut self, conn: &C, x: i16) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn handle_bar_click<C: Connection>(
+        &mut self,
+        conn: &C,
+        x: i16,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(ws_idx) = self.bar.get_clicked_workspace(x) {
             self.switch_workspace(conn, ws_idx)?;
         }
         Ok(())
+    }
+
+    pub fn set_split_direction(&mut self, axis: SplitAxis) {
+        self.pending_split = axis;
+        log::info!("Next window will split: {:?}", axis);
     }
 }
