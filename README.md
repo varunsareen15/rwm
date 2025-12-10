@@ -42,6 +42,7 @@ The codebase is modularized to separate concerns, demonstrating clean software e
 | **Mod + J / K** | Cycle Focus (Next / Previous window) |
 | **Mod + Shift + J / K** | Swap Window Up/Down |
 | **Mod + B** | Toggle Status Bar |
+| **Mod + - / |** | Switch Split Direction in Dwindle Layout |
 | **Mod + 1-9** | Switch to Workspace 1-9 |
 | **Mod + Shift + 1-9** | Move active window to Workspace 1-9 |
 | **Mod + Shift + Q** | Close the focused window |
