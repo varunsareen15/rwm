@@ -23,7 +23,7 @@ The codebase is modularized to separate concerns, demonstrating clean software e
 
 * **`src/main.rs`**: The entry point. It establishes the X11 connection, detects the environment (Wayland vs X11) to auto-configure the Mod key, sets up global key bindings, and runs the primary event loop.
 * **`src/state.rs`**: Manages the global state. It maintains the list of workspaces, focused windows, and handles the logic for mapping new windows and transferring focus.
-* **`src/layout.rs`**: Contains pure functional logic for calculating window geometry (Vertical Stack, Master/Stack, Monocle).
+* **`src/layout.rs`**: Contains pure functional logic for calculating window geometry (Vertical Stack, Master/Stack, Monocle, Dwindle).
 * **`src/workspace.rs`**: data structures for managing individual workspace state.
 * **`src/bar.rs`**: Handles the rendering of the top status bar using pure X11 drawing primitives (`poly_fill_rectangle`).
 
