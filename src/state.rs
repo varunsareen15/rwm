@@ -140,15 +140,6 @@ impl WindowManager {
         conn: &C,
         event: EnterNotifyEvent,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        log::info!(
-            "ENTER_NOTIFY | Window: {} | Mode: {:?} | Detail: {:?} | Root: ({}, {})",
-            event.event,
-            event.mode,
-            event.detail,
-            event.root_x,
-            event.root_y
-        );
-
         if event.mode != NotifyMode::NORMAL || event.detail == NotifyDetail::INFERIOR {
             return Ok(());
         }
@@ -163,7 +154,6 @@ impl WindowManager {
 
         let active_ws = &self.workspaces[self.active_workspace_idx];
         if active_ws.windows.contains(&event.event) {
-            log::info!("FOCUSING: Window {}", event.event);
             self.set_focus(conn, event.event)?;
         }
         Ok(())
@@ -208,17 +198,21 @@ impl WindowManager {
             return Ok(());
         }
 
-        // Hide previous workspace
-        for window in &self.workspaces[self.active_workspace_idx].windows {
-            conn.unmap_window(*window)?;
-        }
-
+        let old_idx = self.active_workspace_idx;
         self.active_workspace_idx = index;
+        self.refresh_layout(conn)?;
 
         // Show new workspace
         for window in &self.workspaces[self.active_workspace_idx].windows {
             conn.map_window(*window)?;
         }
+
+        // Hide previous workspace
+        for window in &self.workspaces[old_idx].windows {
+            conn.unmap_window(*window)?;
+        }
+
+        self.update_bar(conn)?;
 
         // Focus workspace
         if let Some(&window) = self.workspaces[self.active_workspace_idx].windows.last() {
@@ -228,8 +222,6 @@ impl WindowManager {
             conn.set_input_focus(InputFocus::POINTER_ROOT, self.root, 0u32)?;
         }
 
-        self.refresh_layout(conn)?;
-        self.update_bar(conn)?;
         Ok(())
     }
 
