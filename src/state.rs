@@ -1,10 +1,11 @@
 use crate::bar::Bar;
 use crate::layout::{self, Layout};
 use crate::workspace::{SplitAxis, Workspace};
+use std::process::Command;
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{
-    ChangeWindowAttributesAux, ConfigureWindowAux, ConnectionExt, EnterNotifyEvent, EventMask,
-    ExposeEvent, InputFocus, NotifyDetail, NotifyMode, Screen, StackMode, Window,
+    AtomEnum, ChangeWindowAttributesAux, ConfigureWindowAux, ConnectionExt, EnterNotifyEvent,
+    EventMask, ExposeEvent, InputFocus, NotifyDetail, NotifyMode, Screen, StackMode, Window,
 };
 
 pub enum FocusDirection {
@@ -35,9 +36,8 @@ impl WindowManager {
         }
 
         let bar = Bar::new(conn, screen)?;
-        bar.draw(conn, 0, 9)?;
 
-        Ok(Self {
+        let wm = Self {
             workspaces,
             active_workspace_idx: 0,
             focused_window: None,
@@ -47,7 +47,55 @@ impl WindowManager {
             root: screen.root,
             current_top_gap: 20,
             pending_split: SplitAxis::Vertical,
-        })
+        };
+
+        // Initial Draw
+        wm.update_bar(conn)?;
+
+        Ok(wm)
+    }
+
+    pub fn update_bar<C: Connection>(&self, conn: &C) -> Result<(), Box<dyn std::error::Error>> {
+        // 1. Get Layout String
+        let active_ws = &self.workspaces[self.active_workspace_idx];
+        let layout_str = match active_ws.layout {
+            Layout::MasterStack => "[Master]".to_string(),
+            Layout::VerticalStack => "[Vertical]".to_string(),
+            Layout::Monocle => "[Monocle]".to_string(),
+            Layout::Dwindle => match self.pending_split {
+                SplitAxis::Vertical => "[Dwindle -]".to_string(),
+                SplitAxis::Horizontal => "[Dwindle |]".to_string(),
+            },
+        };
+
+        // 2. Get Window Title
+        let mut title = String::new();
+        if let Some(window) = self.focused_window {
+            if let Ok(reply) =
+                conn.get_property(false, window, AtomEnum::WM_NAME, AtomEnum::STRING, 0, 1024)
+            {
+                if let Ok(prop) = reply.reply() {
+                    title = String::from_utf8_lossy(&prop.value).to_string();
+                }
+            }
+        }
+
+        // 3. Get Time (using `date` command as a simple workaround without extra dependencies)
+        let time_output = Command::new("date").arg("+%H:%M").output();
+        let time_str = match time_output {
+            Ok(o) => String::from_utf8_lossy(&o.stdout).trim().to_string(),
+            Err(_) => "00:00".to_string(),
+        };
+
+        self.bar.draw(
+            conn,
+            self.active_workspace_idx,
+            self.workspaces.len(),
+            &layout_str,
+            &title,
+            &time_str,
+        )?;
+        Ok(())
     }
 
     pub fn handle_map_request<C: Connection>(
@@ -69,8 +117,7 @@ impl WindowManager {
         conn.map_window(window)?;
         // Focus the new window
         self.set_focus(conn, window)?;
-        self.bar
-            .draw(conn, self.active_workspace_idx, self.workspaces.len())?;
+        self.update_bar(conn)?;
         self.refresh_layout(conn)?;
         Ok(())
     }
@@ -81,8 +128,7 @@ impl WindowManager {
         event: ExposeEvent,
     ) -> Result<(), Box<dyn std::error::Error>> {
         if event.window == self.bar.window {
-            self.bar
-                .draw(conn, self.active_workspace_idx, self.workspaces.len())?;
+            self.update_bar(conn)?;
         }
         Ok(())
     }
@@ -100,6 +146,7 @@ impl WindowManager {
         if active_ws.windows.contains(&event.event) {
             self.set_focus(conn, event.event)?;
         }
+        self.update_bar(conn)?;
         Ok(())
     }
 
@@ -128,6 +175,7 @@ impl WindowManager {
                 }
             }
             self.refresh_layout(conn)?;
+            self.update_bar(conn)?;
         }
         Ok(())
     }
@@ -153,9 +201,6 @@ impl WindowManager {
             conn.map_window(*window)?;
         }
 
-        self.bar
-            .draw(conn, self.active_workspace_idx, self.workspaces.len())?;
-
         // Focus workspace
         if let Some(&window) = self.workspaces[self.active_workspace_idx].windows.last() {
             self.set_focus(conn, window)?;
@@ -165,6 +210,7 @@ impl WindowManager {
         }
 
         self.refresh_layout(conn)?;
+        self.update_bar(conn)?;
         Ok(())
     }
 
@@ -180,9 +226,15 @@ impl WindowManager {
             let active_ws = &mut self.workspaces[self.active_workspace_idx];
             if let Some(pos) = active_ws.windows.iter().position(|&w| w == window) {
                 active_ws.windows.remove(pos);
+                let split_val = if pos < active_ws.split_history.len() {
+                    active_ws.split_history.remove(pos)
+                } else {
+                    SplitAxis::Vertical
+                };
+                conn.unmap_window(window)?;
+                self.workspaces[target_index].windows.push(window);
+                self.workspaces[target_index].split_history.push(split_val);
             }
-            conn.unmap_window(window)?;
-            self.workspaces[target_index].windows.push(window);
             let active_ws = &self.workspaces[self.active_workspace_idx];
             if let Some(&last) = active_ws.windows.last() {
                 self.set_focus(conn, last)?;
@@ -211,6 +263,7 @@ impl WindowManager {
         if let Some(win) = self.focused_window {
             self.set_focus(conn, win)?;
         }
+        self.update_bar(conn)?;
         self.refresh_layout(conn)?;
         Ok(())
     }
@@ -244,6 +297,7 @@ impl WindowManager {
         // Set the focus
         let next_window = active_ws.windows[next_index];
         self.set_focus(conn, next_window)?;
+        self.update_bar(conn)?;
         Ok(())
     }
 
@@ -267,6 +321,7 @@ impl WindowManager {
         conn.set_input_focus(InputFocus::POINTER_ROOT, window, 0u32)?;
         let values = ConfigureWindowAux::new().stack_mode(StackMode::ABOVE);
         conn.configure_window(window, &values)?;
+        self.update_bar(conn)?;
         Ok(())
     }
 
@@ -363,8 +418,7 @@ impl WindowManager {
         } else {
             self.current_top_gap = 20;
             conn.map_window(self.bar.window)?;
-            self.bar
-                .draw(conn, self.active_workspace_idx, self.workspaces.len())?;
+            self.update_bar(conn)?;
         }
         self.refresh_layout(conn)?;
         Ok(())
@@ -381,8 +435,23 @@ impl WindowManager {
         Ok(())
     }
 
-    pub fn set_split_direction(&mut self, axis: SplitAxis) {
+    pub fn set_split_direction<C: Connection>(
+        &mut self,
+        conn: &C,
+        axis: SplitAxis,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         self.pending_split = axis;
+
+        if let Some(ws) = self.workspaces.get_mut(self.active_workspace_idx) {
+            if let Some(last_split) = ws.split_history.last_mut() {
+                *last_split = axis;
+            }
+        }
+
         log::info!("Next window will split: {:?}", axis);
+
+        self.update_bar(conn)?;
+
+        Ok(())
     }
 }

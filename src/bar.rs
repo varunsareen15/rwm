@@ -1,12 +1,13 @@
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{
-    ConfigureWindowAux, ConnectionExt, CreateWindowAux, EventMask, Gcontext, Rectangle, Screen,
-    StackMode, Window, WindowClass,
+    Char2b, ConfigureWindowAux, ConnectionExt, CreateWindowAux, EventMask, Font, Gcontext,
+    Rectangle, Screen, StackMode, Window, WindowClass,
 };
 
 pub struct Bar {
     pub window: Window,
     gc: Gcontext,
+    font: Font,
     width: u16,
     height: u16,
 }
@@ -18,8 +19,11 @@ impl Bar {
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let window = conn.generate_id()?;
         let gc = conn.generate_id()?;
+        let font = conn.generate_id()?;
         let height = 20;
         let width = screen.width_in_pixels;
+
+        conn.open_font(font, b"fixed")?;
 
         // Create the bar
         let win_aux = CreateWindowAux::new()
@@ -45,6 +49,7 @@ impl Bar {
         let gc_aux = x11rb::protocol::xproto::CreateGCAux::new()
             .foreground(screen.white_pixel)
             .background(screen.black_pixel)
+            .font(font)
             .graphics_exposures(0);
 
         conn.create_gc(gc, window, &gc_aux)?;
@@ -55,6 +60,7 @@ impl Bar {
         Ok(Self {
             window,
             gc,
+            font,
             width,
             height,
         })
@@ -65,6 +71,9 @@ impl Bar {
         conn: &C,
         active_idx: usize,
         total_workspaces: usize,
+        layout_name: &str,
+        window_title: &str,
+        clock: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let stack = ConfigureWindowAux::new().stack_mode(StackMode::ABOVE);
         conn.configure_window(self.window, &stack)?;
@@ -104,6 +113,50 @@ impl Bar {
             conn.poly_fill_rectangle(self.window, self.gc, &filled_rects)?;
         }
 
+        let ws_end_x = start_x + (total_workspaces as i16 * (block_size + gap));
+        let layout_x = ws_end_x + 10;
+        self.draw_text(conn, layout_x, 14, layout_name)?;
+
+        if !window_title.is_empty() {
+            let title_w = self.text_width(conn, window_title)?;
+            let center_x = (self.width as i16 / 2) - (title_w as i16 / 2);
+            self.draw_text(conn, center_x, 14, window_title)?;
+        }
+
+        if !clock.is_empty() {
+            let clock_w = self.text_width(conn, clock)?;
+            let right_w = (self.width as i16) - (clock_w as i16) - 10;
+            self.draw_text(conn, right_w, 14, clock)?;
+        }
+
+        Ok(())
+    }
+
+    fn text_width<C: Connection>(
+        &self,
+        conn: &C,
+        text: &str,
+    ) -> Result<u16, Box<dyn std::error::Error>> {
+        let chars: Vec<Char2b> = text
+            .as_bytes()
+            .iter()
+            .map(|&b| Char2b { byte1: 0, byte2: b })
+            .collect();
+
+        let reply = conn.query_text_extents(self.font, &chars)?.reply()?;
+        Ok(reply.overall_width as u16)
+    }
+
+    fn draw_text<C: Connection>(
+        &self,
+        conn: &C,
+        x: i16,
+        y: i16,
+        text: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let bytes = text.as_bytes();
+        conn.image_text8(self.window, self.gc, x, y, bytes)?
+            .check()?;
         Ok(())
     }
 

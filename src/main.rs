@@ -195,12 +195,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 } else if Some(key) == k_b && (modifiers & mod_super != 0) {
                     wm_state.toggle_bar(&conn)?;
                 } else if Some(key) == k_minus && (modifiers & mod_super != 0) {
-                    wm_state.set_split_direction(workspace::SplitAxis::Horizontal);
+                    wm_state.set_split_direction(&conn, workspace::SplitAxis::Vertical)?;
                 } else if Some(key) == k_backslash
                     && (modifiers & mod_super != 0)
                     && (modifiers & mod_shift != 0)
                 {
-                    wm_state.set_split_direction(workspace::SplitAxis::Vertical);
+                    wm_state.set_split_direction(&conn, workspace::SplitAxis::Horizontal)?;
                 } else if Some(key) == k_space && (modifiers & mod_super != 0) {
                     wm_state.cycle_layout(&conn)?;
                 } else if let Some(&(_, ws_index)) = key_map.iter().find(|(code, _)| *code == key) {
