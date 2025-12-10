@@ -3,7 +3,11 @@ mod layout;
 mod state;
 mod workspace;
 
+use simplelog::{
+    ColorChoice, CombinedLogger, Config, LevelFilter, TermLogger, TerminalMode, WriteLogger,
+};
 use state::WindowManager;
+use std::fs::File;
 use std::process::Command;
 use x11rb::connection::Connection;
 use x11rb::protocol::Event;
@@ -55,16 +59,30 @@ const XK_MINUS: u32 = 0x002d;
 const XK_BACKSLASH: u32 = 0x005c;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::init();
+    // env_logger::init();
+
+    CombinedLogger::init(vec![
+        TermLogger::new(
+            LevelFilter::Info,
+            Config::default(),
+            TerminalMode::Mixed,
+            ColorChoice::Auto,
+        ),
+        WriteLogger::new(
+            LevelFilter::Info,
+            Config::default(),
+            File::create("/tmp/rwm.log")?,
+        ),
+    ])?;
 
     let (conn, screen_num) = x11rb::connect(None)?;
     let screen = &conn.setup().roots[screen_num];
 
-    log::info!(
+    /* log::info!(
         "Connected. Screen: {}x{}",
         screen.width_in_pixels,
         screen.height_in_pixels
-    );
+    ); */
 
     setup_cursor(&conn, screen)?;
 

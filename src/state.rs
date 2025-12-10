@@ -23,6 +23,7 @@ pub struct WindowManager {
     root: Window,
     current_top_gap: u16,
     pending_split: SplitAxis,
+    last_mouse_pos: Option<(i16, i16)>,
 }
 
 impl WindowManager {
@@ -47,6 +48,7 @@ impl WindowManager {
             root: screen.root,
             current_top_gap: 20,
             pending_split: SplitAxis::Vertical,
+            last_mouse_pos: None,
         };
 
         // Initial Draw
@@ -138,15 +140,32 @@ impl WindowManager {
         conn: &C,
         event: EnterNotifyEvent,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        log::info!(
+            "ENTER_NOTIFY | Window: {} | Mode: {:?} | Detail: {:?} | Root: ({}, {})",
+            event.event,
+            event.mode,
+            event.detail,
+            event.root_x,
+            event.root_y
+        );
+
         if event.mode != NotifyMode::NORMAL || event.detail == NotifyDetail::INFERIOR {
             return Ok(());
         }
 
+        if let Some(last) = self.last_mouse_pos {
+            if last == (event.root_x, event.root_y) {
+                return Ok(());
+            }
+        }
+
+        self.last_mouse_pos = Some((event.root_x, event.root_y));
+
         let active_ws = &self.workspaces[self.active_workspace_idx];
         if active_ws.windows.contains(&event.event) {
+            log::info!("FOCUSING: Window {}", event.event);
             self.set_focus(conn, event.event)?;
         }
-        self.update_bar(conn)?;
         Ok(())
     }
 
