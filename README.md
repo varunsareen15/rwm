@@ -11,7 +11,7 @@ This project was built to demonstrate low-level systems programming concepts, sa
 * **Dynamic Tiling:** Automatically arranges windows to maximize screen real estate.
 * **Focus Follows Mouse:** Window focus changes instantly as you hover the mouse over windows.
 * **Interactive Status Bar:** Clickable workspace indicators to switch tags, with `Mod + B` toggle visibility.
-* **Multiple Layouts:** Supports **Master/Stack**, **Vertical Stack**, and **Monocle** layouts.
+* **Multiple Layouts:** Supports **Master/Stack**, **Vertical Stack**, **Dwindle** and **Monocle** layouts.
 * **Workspaces:** Supports 9 virtual desktops with independent window management.
 * **Rust-Safe Interaction:** Uses `x11rb` for safe, Rust-idiomatic wrappers around the XCB library.
 * **Event-Driven Architecture:** Implements a custom event loop to handle `MapRequest`, `DestroyNotify`, and `KeyPress` events efficiently.
