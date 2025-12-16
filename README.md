@@ -48,7 +48,7 @@ To build and run **rwm**, you need:
 * **Kitty** (Default terminal emulator)
 * **dmenu** (Application launcher)
 
-## How to run rwm
+## 🏃‍♂️ How to run rwm
 
 Add the following to your `~/.xinitrc`:
 
