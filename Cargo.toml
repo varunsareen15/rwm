@@ -1,11 +1,17 @@
 [package]
 name = "rwm"
-version = "0.1.0"
-edition = "2024"
+version = "1.0.0"
+edition = "2026"
+authors = ["Varun Sareen varunsareen15@gmail.com"]
+description = "A dynamic, tiling X11 window manager written in Rust."
+license = "MIT"
+repository = "https://github.com/varunsareen15/rwm"
 
 [dependencies]
 x11rb = "0.11"
 log = "0.4"
 env_logger = "0.10"
 simplelog = "0.12"
-
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+dirs = "5.0"

@@ -1,0 +1,55 @@
+# rwm Configuration File
+# Location: ~/.config/rwm/rwm.toml
+
+[bindings]
+
+# --- System & Application Launching ---
+"Mod+Return"        = "Spawn kitty"
+"Mod+p"             = "Spawn dmenu_run"
+"Mod+Shift+q"       = "KillFocused"
+"Mod+Control+q"     = "Quit"
+
+# --- Focus Movement ---
+"Mod+j"             = "FocusNext"
+"Mod+k"             = "FocusPrev"
+
+# --- Window Movement ---
+"Mod+Shift+j"       = "MoveWindowNext"
+"Mod+Shift+k"       = "MoveWindowPrev"
+"Mod+Shift+Return"  = "PromoteMaster"
+
+# --- Layout Controls ---
+"Mod+Space"         = "CycleLayout"  # Master -> Vertical -> Dwindle -> Monocle
+"Mod+b"             = "ToggleBar"
+
+# --- Dwindle Split Controls ---
+# '-' for Horizontal split
+"Mod+minus"           = "SplitHorizontal"
+# '|' (Shift + \) for Vertical split
+"Mod+Shift+backslash" = "SplitVertical"
+
+# --- Workspace Switching (1-9) ---
+"Mod+1" = "Workspace 1"
+"Mod+2" = "Workspace 2"
+"Mod+3" = "Workspace 3"
+"Mod+4" = "Workspace 4"
+"Mod+5" = "Workspace 5"
+"Mod+6" = "Workspace 6"
+"Mod+7" = "Workspace 7"
+"Mod+8" = "Workspace 8"
+"Mod+9" = "Workspace 9"
+
+# --- Move Window to Workspace (1-9) ---
+"Mod+Shift+1" = "MoveToWorkspace 1"
+"Mod+Shift+2" = "MoveToWorkspace 2"
+"Mod+Shift+3" = "MoveToWorkspace 3"
+"Mod+Shift+4" = "MoveToWorkspace 4"
+"Mod+Shift+5" = "MoveToWorkspace 5"
+"Mod+Shift+6" = "MoveToWorkspace 6"
+"Mod+Shift+7" = "MoveToWorkspace 7"
+"Mod+Shift+8" = "MoveToWorkspace 8"
+"Mod+Shift+9" = "MoveToWorkspace 9"
+
+# --- Custom Examples (Uncomment to use) ---
+# "Mod+w" = "Spawn firefox"
+# "Mod+e" = "Spawn thunar"

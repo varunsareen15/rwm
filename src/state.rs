@@ -4,7 +4,7 @@ use crate::workspace::{SplitAxis, Workspace};
 use std::process::Command;
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{
-    AtomEnum, ChangeWindowAttributesAux, ConfigureWindowAux, ConnectionExt, EnterNotifyEvent,
+    self, AtomEnum, ChangeWindowAttributesAux, ConfigureWindowAux, ConnectionExt, EnterNotifyEvent,
     EventMask, ExposeEvent, InputFocus, NotifyDetail, NotifyMode, Screen, StackMode, Window,
 };
 
@@ -487,6 +487,25 @@ impl WindowManager {
 
         self.update_bar(conn)?;
 
+        Ok(())
+    }
+
+    pub fn setup_cursor(
+        conn: &impl Connection,
+        screen: &xproto::Screen,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let font_id = conn.generate_id()?;
+        conn.open_font(font_id, b"cursor")?;
+
+        let cursor_id = conn.generate_id()?;
+
+        conn.create_glyph_cursor(
+            cursor_id, font_id, font_id, 68, 69, 0, 0, 0, 65535, 65535, 65535,
+        )?;
+
+        let changes = xproto::ChangeWindowAttributesAux::new().cursor(cursor_id);
+        conn.change_window_attributes(screen.root, &changes)?;
+        conn.close_font(font_id)?;
         Ok(())
     }
 }
