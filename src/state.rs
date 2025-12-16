@@ -105,19 +105,33 @@ impl WindowManager {
         conn: &C,
         window: Window,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let active_ws = &mut self.workspaces[self.active_workspace_idx];
+        let existing_ws_idx = self
+            .workspaces
+            .iter()
+            .position(|ws| ws.windows.contains(&window));
 
-        if !active_ws.windows.contains(&window) {
-            active_ws.windows.push(window);
-            active_ws.split_history.push(self.pending_split);
+        if let Some(idx) = existing_ws_idx {
+            if idx != self.active_workspace_idx {
+                self.switch_workspace(conn, idx)?;
+            }
+
+            conn.map_window(window)?;
+            self.set_focus(conn, window)?;
+            self.refresh_layout(conn)?;
+            self.update_bar(conn)?;
+            return Ok(());
         }
 
-        let changes = ChangeWindowAttributesAux::new()
-            .event_mask(EventMask::ENTER_WINDOW | EventMask::STRUCTURE_NOTIFY);
+        let active_ws = &mut self.workspaces[self.active_workspace_idx];
+        active_ws.windows.push(window);
+        active_ws.split_history.push(self.pending_split);
+
+        let changes = ChangeWindowAttributesAux::new().event_mask(
+            EventMask::ENTER_WINDOW | EventMask::STRUCTURE_NOTIFY | EventMask::PROPERTY_CHANGE,
+        );
         conn.change_window_attributes(window, &changes)?;
 
         conn.map_window(window)?;
-        // Focus the new window
         self.set_focus(conn, window)?;
         self.update_bar(conn)?;
         self.refresh_layout(conn)?;
