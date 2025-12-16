@@ -21,9 +21,7 @@ Designed for speed and simplicity, **rwm** communicates directly with the X serv
 
 ## ⌨️ Controls
 
-**Mod Key:** Auto-detected.
-* **Wayland/Xephyr:** `Alt` (to avoid conflict with host)
-* **Native X11:** `Super` (Windows Key)
+**Mod Key:** `Super` (Windows Key)
 
 | Keybinding | Action |
 | :--- | :--- |
