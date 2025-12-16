@@ -178,28 +178,31 @@ impl WindowManager {
         conn: &C,
         window: Window,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let active_ws = &mut self.workspaces[self.active_workspace_idx];
-        // Find if the destroyed window was in our list
-        if let Some(pos) = active_ws.windows.iter().position(|&w| w == window) {
-            active_ws.windows.remove(pos);
-            if pos < active_ws.split_history.len() {
-                active_ws.split_history.remove(pos);
-            }
-            // If the destroyed window was the one with focus...
-            if self.focused_window == Some(window) {
-                // ...try to focus the previous window in the list (or the last one)
-                // If the list is empty, this returns None, which is correct.
-                let next_window = active_ws.windows.last().copied();
-                if let Some(win) = next_window {
-                    self.set_focus(conn, win)?;
-                } else {
-                    self.focused_window = None;
-                    conn.set_input_focus(InputFocus::POINTER_ROOT, self.root, 0u32)?;
+        for (i, ws) in self.workspaces.iter_mut().enumerate() {
+            if let Some(pos) = ws.windows.iter().position(|&w| w == window) {
+                ws.windows.remove(pos);
+                if pos < ws.split_history.len() {
+                    ws.split_history.remove(pos);
                 }
+
+                if i == self.active_workspace_idx {
+                    self.refresh_layout(conn)?;
+                }
+
+                break;
             }
-            self.refresh_layout(conn)?;
-            self.update_bar(conn)?;
         }
+
+        if self.focused_window == Some(window) {
+            let active_ws = &self.workspaces[self.active_workspace_idx];
+            if let Some(&new_focus) = active_ws.windows.last() {
+                self.set_focus(conn, new_focus)?;
+            } else {
+                self.focused_window = None;
+                conn.set_input_focus(InputFocus::POINTER_ROOT, self.root, 0u32)?;
+            }
+        }
+
         Ok(())
     }
 
@@ -249,17 +252,22 @@ impl WindowManager {
         }
         if let Some(window) = self.focused_window {
             let active_ws = &mut self.workspaces[self.active_workspace_idx];
+            let mut split_preference = SplitAxis::Vertical;
+
             if let Some(pos) = active_ws.windows.iter().position(|&w| w == window) {
                 active_ws.windows.remove(pos);
-                let split_val = if pos < active_ws.split_history.len() {
-                    active_ws.split_history.remove(pos)
-                } else {
-                    SplitAxis::Vertical
-                };
-                conn.unmap_window(window)?;
-                self.workspaces[target_index].windows.push(window);
-                self.workspaces[target_index].split_history.push(split_val);
+                if pos < active_ws.split_history.len() {
+                    split_preference = active_ws.split_history.remove(pos);
+                }
             }
+
+            conn.unmap_window(window)?;
+            self.workspaces[target_index].windows.push(window);
+            self.workspaces[target_index]
+                .split_history
+                .push(split_preference);
+            self.refresh_layout(conn)?;
+
             let active_ws = &self.workspaces[self.active_workspace_idx];
             if let Some(&last) = active_ws.windows.last() {
                 self.set_focus(conn, last)?;
@@ -267,7 +275,9 @@ impl WindowManager {
                 self.focused_window = None;
                 conn.set_input_focus(InputFocus::POINTER_ROOT, self.root, 0u32)?;
             }
+
             self.refresh_layout(conn)?;
+            self.update_bar(conn)?;
         }
         Ok(())
     }
