@@ -7,6 +7,24 @@ use std::path::PathBuf;
 pub struct Config {
     #[serde(default)]
     pub bindings: HashMap<String, String>,
+    #[serde(default)]
+    pub bar: BarConfig,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct BarConfig {
+    pub font: String,
+    pub font_size: u16,
+    pub workspace_style: String, 
+    pub workspace_icons: Vec<String>, 
+    #[serde(default)]
+    pub modules: Vec<BarModule>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct BarModule {
+    pub command: String,
+    pub interval: u64, 
 }
 
 impl Default for Config {
@@ -36,7 +54,22 @@ impl Default for Config {
             bindings.insert(format!("Mod+Shift+{}", i), format!("MoveToWorkspace {}", i));
         }
 
-        Self { bindings }
+        Self { 
+            bindings,
+            bar: BarConfig::default(),
+        }
+    }
+}
+
+impl Default for BarConfig {
+    fn default() -> Self {
+        Self {
+            font: "6x13".to_string(), // Fallback
+            font_size: 13,
+            workspace_style: "Numbers".to_string(),
+            workspace_icons: vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string(), "6".to_string(), "7".to_string(), "8".to_string(), "9".to_string()],
+            modules: Vec::new(),
+        }
     }
 }
 
@@ -55,6 +88,7 @@ impl Config {
                     for (key, value) in cfg.bindings {
                         config.bindings.insert(key, value);
                     }
+                    config.bar = cfg.bar;
                     log::info!("Loaded config grom {:?}", config_path);
                 }
 
