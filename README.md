@@ -11,17 +11,20 @@ Designed for speed and simplicity, **rwm** communicates directly with the X serv
 * **Dynamic Tiling:** Automatically arranges windows to maximize screen real estate.
 * **4 Layout Modes:**
     * **Master/Stack:** The classic "one master, many stack" layout.
-    * **Dwindle:** A Fibonacci-like layout with manual split direction control.
+    * **Dwindle:** A Fibonacci-like layout with manual split direction control (`-` vs `|`).
     * **Vertical Stack:** All windows split evenly horizontally.
     * **Monocle:** Fullscreen focused window.
-* **Configuration System:** Fully configurable keybindings via '~/.config/rwm/rwm.toml'.
-* **Interactive Status Bar:** Displays workspaces, active window title, clock, and layout indicator.
+* **Configuration System:** Fully configurable keybindings, colors, and bar settings via `~/.config/rwm/rwm.toml`.
+* **Modern Status Bar:**
+    * Supports **Nerd Fonts** and `.ttf` / `.otf` files for icons.
+    * DWM-style clickable workspace tags.
+    * Scriptable modules (Battery, Volume, etc.) with custom update intervals.
 * **Workspaces:** 9 virtual desktops with instant, tear-free switching.
 * **Rust-Safe Interaction:** Uses `x11rb` for safe, Rust-idiomatic wrappers around the XCB library.
 
 ## ⌨️ Controls
 
-**Mod Key:** `Super` (Windows Key)
+**Mod Key:** `Super` (Windows Key) or `Alt` (Configurable)
 
 | Keybinding | Action |
 | :--- | :--- |
@@ -39,6 +42,22 @@ Designed for speed and simplicity, **rwm** communicates directly with the X serv
 | **Mod + Ctrl + Q** | Quit the Window Manager |
 
 
+## ⚙️ Configuration
+
+**rwm** looks for a configuration file at `~/.config/rwm/rwm.toml`.
+
+You can configure keybindings, fonts, workspace icons, and status bar modules (scripts). See the `example.toml` in this repository for a full reference.
+
+### Bar Customization
+The bar supports Truetype fonts (via `rusttype`), allowing you to use Nerd Fonts for icons.
+
+```toml
+[bar]
+font = "/Path/To/font.ttf"
+workspace_style = "Icons"
+workspace_icons = ["", "", "", "", "", "6", "7", "8", "9"]
+```
+
 ## 📦 Prerequisites
 
 To build and run **rwm**, you need:
@@ -50,15 +69,27 @@ To build and run **rwm**, you need:
 
 ## 🏃‍♂️ How to run rwm
 
+Build Release Binary:
+
+```bash
+cargo build --release
+```
+
 Add the following to your `~/.xinitrc`:
 
 ```bash
 exec /path/to/target/release/rwm
 ```
 
+Start X
+
+```bash
+startx
+```
+
 ## 🔍 Troubleshooting & Logging
 
-rwm logs debug information to `/tmp/rwm.log`. You can watch this file in real-time to debug issues or see internal state changes: 
+rwm logs debug information to `/tmp/rwm.log`. You can watch this file in real-time to debug issues or see internal state changes:
 
 ```bash
 tail -f /tmp/rwm.log
@@ -67,3 +98,4 @@ tail -f /tmp/rwm.log
 ## 📄 License
 
 MIT
+

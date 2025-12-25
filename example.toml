@@ -1,34 +1,72 @@
-# rwm Configuration File
-# Location: ~/.config/rwm/rwm.toml
+# =============================================================================
+#  RWM (Rust Window Manager) Configuration File
+# =============================================================================
+#
+#  Installation:
+#    Copy this file to: ~/.config/rwm/rwm.toml
+#
+#  Syntax:
+#    TOML format. Comments start with '#'.
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1. KEYBINDINGS
+# -----------------------------------------------------------------------------
+# Format: "MODIFIER+KEY" = "ACTION"
+#
+# Modifiers:
+#   - Mod     (Automatically maps to Super/Windows key, or Alt if Xephyr)
+#   - Shift
+#   - Control
+#   - Alt
+#
+# Available Actions:
+#   - Spawn <cmd>        : Run a shell command (e.g., "Spawn kitty")
+#   - KillFocused        : Close the currently focused window
+#   - Quit               : Exit rwm
+#   - FocusNext          : Focus the next window in the stack
+#   - FocusPrev          : Focus the previous window in the stack
+#   - MoveWindowNext     : Swap focused window with the next one
+#   - MoveWindowPrev     : Swap focused window with the previous one
+#   - PromoteMaster      : Push the focused window to the primary (Master) area
+#   - CycleLayout        : Switch between Master, Vertical, Dwindle, Monocle
+#   - ToggleBar          : Show/Hide the status bar
+#   - SplitHorizontal    : (Dwindle Layout) Split the next window horizontally
+#   - SplitVertical      : (Dwindle Layout) Split the next window vertically
+#   - Workspace <1-9>    : Switch to a specific workspace
+#   - MoveToWorkspace <N>: Move the active window to a specific workspace
+# -----------------------------------------------------------------------------
 
 [bindings]
 
-# --- System & Application Launching ---
-"Mod+Return"        = "Spawn kitty"
-"Mod+p"             = "Spawn dmenu_run"
-"Mod+Shift+q"       = "KillFocused"
-"Mod+Control+q"     = "Quit"
+# --- Application Launchers ---
+"Mod+Return"        = "Spawn kitty"          # Terminal
+"Mod+p"             = "Spawn dmenu_run"      # Launcher
+"Mod+w"             = "Spawn firefox"        # Web Browser
+"Mod+e"             = "Spawn thunar"         # File Manager
 
-# --- Focus Movement ---
-"Mod+j"             = "FocusNext"
-"Mod+k"             = "FocusPrev"
+# --- Window Management ---
+"Mod+Shift+q"       = "KillFocused"          # Close Window
+"Mod+Control+q"     = "Quit"                 # Exit RWM
 
-# --- Window Movement ---
-"Mod+Shift+j"       = "MoveWindowNext"
-"Mod+Shift+k"       = "MoveWindowPrev"
-"Mod+Shift+Return"  = "PromoteMaster"
+# --- Focus & Movement (Vim-style) ---
+"Mod+j"             = "FocusNext"            # Focus Next
+"Mod+k"             = "FocusPrev"            # Focus Prev
+"Mod+Shift+j"       = "MoveWindowNext"       # Move Down/Next
+"Mod+Shift+k"       = "MoveWindowPrev"       # Move Up/Prev
+"Mod+Shift+Return"  = "PromoteMaster"        # Promote to Master
 
 # --- Layout Controls ---
-"Mod+Space"         = "CycleLayout"  # Master -> Vertical -> Dwindle -> Monocle
-"Mod+b"             = "ToggleBar"
+"Mod+Space"         = "CycleLayout"          # Cycle through layouts
+"Mod+b"             = "ToggleBar"            # Toggle bar visibility
 
-# --- Dwindle Split Controls ---
-# '-' for Horizontal split
-"Mod+minus"           = "SplitHorizontal"
-# '|' (Shift + \) for Vertical split
-"Mod+Shift+backslash" = "SplitVertical"
+# --- Dwindle Layout Splits ---
+# Determines how the NEXT window will open in Dwindle mode.
+"Mod+minus"           = "SplitHorizontal"    # Split Below (-)
+"Mod+Shift+backslash" = "SplitVertical"      # Split Side (|)
 
-# --- Workspace Switching (1-9) ---
+# --- Workspaces (Switching) ---
 "Mod+1" = "Workspace 1"
 "Mod+2" = "Workspace 2"
 "Mod+3" = "Workspace 3"
@@ -39,7 +77,7 @@
 "Mod+8" = "Workspace 8"
 "Mod+9" = "Workspace 9"
 
-# --- Move Window to Workspace (1-9) ---
+# --- Workspaces (Moving Windows) ---
 "Mod+Shift+1" = "MoveToWorkspace 1"
 "Mod+Shift+2" = "MoveToWorkspace 2"
 "Mod+Shift+3" = "MoveToWorkspace 3"
@@ -50,6 +88,71 @@
 "Mod+Shift+8" = "MoveToWorkspace 8"
 "Mod+Shift+9" = "MoveToWorkspace 9"
 
-# --- Custom Examples (Uncomment to use) ---
-# "Mod+w" = "Spawn firefox"
-# "Mod+e" = "Spawn thunar"
+
+# -----------------------------------------------------------------------------
+# 2. STATUS BAR CONFIGURATION
+# -----------------------------------------------------------------------------
+[bar]
+
+# Font Path:
+#   Must be an absolute path to a TTF or OTF file.
+#   Nerd Fonts are recommended for icons.
+#   Example locations: /usr/share/fonts/TTF/..., ~/.local/share/fonts/...
+font = "/usr/share/fonts/TTF/HackNerdFont-Regular.ttf"
+
+# Workspace Style:
+#   Controls how workspaces are drawn.
+#   Options:
+#     - "Icons"   : Uses the 'workspace_icons' list below.
+#     - "Numbers" : Ignored icons, uses 1, 2, 3...
+#     - "Squares" : Uses [x] for active, [ ] for inactive.
+workspace_style = "Icons"
+
+# Workspace Icons:
+#   List of characters to represent workspaces 1-9.
+#   These are centered inside the clickable boxes on the bar.
+workspace_icons = [
+    "",  # 1: Web
+    "",  # 2: Term
+    "",  # 3: Code
+    "",  # 4: Files
+    "",  # 5: Game
+    "6",
+    "7",
+    "8",
+    "9"
+]
+
+
+# -----------------------------------------------------------------------------
+# 3. BAR MODULES (SCRIPTS)
+# -----------------------------------------------------------------------------
+# Modules run shell commands at specified intervals.
+# Output is displayed on the right side of the bar (Left of the clock).
+#
+# Structure:
+#   [[bar.modules]]
+#   command  = "shell command"
+#   interval = <seconds>
+# -----------------------------------------------------------------------------
+
+# Example 1: Audio Volume (PipeWire/WirePlumber)
+[[bar.modules]]
+command = "wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '{print \"Vol: \" int($2 * 100) \"%\"}'"
+interval = 1
+
+# Example 2: Battery Status
+# (Checks /sys/class/power_supply. Adjust 'BAT0' if your system uses 'BAT1')
+[[bar.modules]]
+command = "echo Bat: $(cat /sys/class/power_supply/BAT0/capacity 2>/dev/null || echo 'AC')%"
+interval = 30
+
+# Example 3: Disk Usage
+[[bar.modules]]
+command = "df -h / | awk 'NR==2 {print \"Disk: \" $4}'"
+interval = 60
+
+# Example 4: RAM Usage (Optional, uncomment to use)
+# [[bar.modules]]
+# command = "free -h | awk '/^Mem/ { print \"RAM: \" $3 \"/\" $2 }'"
+# interval = 5
