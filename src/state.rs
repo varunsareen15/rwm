@@ -1,10 +1,10 @@
 use crate::bar::Bar;
+use crate::config::Config;
 use crate::layout::{self, Layout};
 use crate::workspace::{SplitAxis, Workspace};
-use std::process::Command;
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{
-    self, AtomEnum, ChangeWindowAttributesAux, ConfigureWindowAux, ConnectionExt, EnterNotifyEvent,
+    self, ChangeWindowAttributesAux, ConfigureWindowAux, ConnectionExt, EnterNotifyEvent,
     EventMask, ExposeEvent, InputFocus, NotifyDetail, NotifyMode, Screen, StackMode, Window,
 };
 
@@ -30,15 +30,16 @@ impl WindowManager {
     pub fn new<C: Connection>(
         conn: &C,
         screen: &Screen,
+        config: Config,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let mut workspaces = Vec::new();
         for _ in 0..9 {
             workspaces.push(Workspace::new());
         }
 
-        let bar = Bar::new(conn, screen)?;
+        let bar = Bar::new(conn, screen, config.bar.clone())?;
 
-        let wm = Self {
+        let mut wm = Self {
             workspaces,
             active_workspace_idx: 0,
             focused_window: None,
@@ -57,7 +58,18 @@ impl WindowManager {
         Ok(wm)
     }
 
-    pub fn update_bar<C: Connection>(&self, conn: &C) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn handle_timer_tick<C: Connection>(
+        &mut self,
+        conn: &C,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        self.update_bar(conn)?;
+        Ok(())
+    }
+
+    pub fn update_bar<C: Connection>(
+        &mut self,
+        conn: &C,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         // 1. Get Layout String
         let active_ws = &self.workspaces[self.active_workspace_idx];
         let layout_str = match active_ws.layout {
@@ -70,32 +82,12 @@ impl WindowManager {
             },
         };
 
-        // 2. Get Window Title
-        let mut title = String::new();
-        if let Some(window) = self.focused_window {
-            if let Ok(reply) =
-                conn.get_property(false, window, AtomEnum::WM_NAME, AtomEnum::STRING, 0, 1024)
-            {
-                if let Ok(prop) = reply.reply() {
-                    title = String::from_utf8_lossy(&prop.value).to_string();
-                }
-            }
-        }
-
-        // 3. Get Time (using `date` command as a simple workaround without extra dependencies)
-        let time_output = Command::new("date").arg("+%H:%M").output();
-        let time_str = match time_output {
-            Ok(o) => String::from_utf8_lossy(&o.stdout).trim().to_string(),
-            Err(_) => "00:00".to_string(),
-        };
-
         self.bar.draw(
             conn,
             self.active_workspace_idx,
             self.workspaces.len(),
             &layout_str,
-            &title,
-            &time_str,
+            self.focused_window,
         )?;
         Ok(())
     }

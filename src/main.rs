@@ -13,9 +13,13 @@ use state::WindowManager;
 use std::collections::HashMap;
 use std::fs::File;
 use std::process::Command;
+use std::thread;
+use std::time::Duration;
 use x11rb::connection::Connection;
 use x11rb::protocol::Event;
-use x11rb::protocol::xproto::{self, ConnectionExt, ModMask};
+use x11rb::protocol::xproto::{
+    self, ClientMessageData, ClientMessageEvent, ConnectionExt, ModMask,
+};
 
 #[derive(Debug, Clone)]
 enum Action {
@@ -122,8 +126,6 @@ fn detect_mod_key() -> ModMask {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // env_logger::init();
-
     CombinedLogger::init(vec![
         TermLogger::new(
             LevelFilter::Info,
@@ -142,6 +144,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (conn, screen_num) = x11rb::connect(None)?;
     let screen = &conn.setup().roots[screen_num];
+    let root_win = screen.root;
     let mod_mask = detect_mod_key();
 
     log::info!(
@@ -155,6 +158,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         xproto::EventMask::SUBSTRUCTURE_REDIRECT | xproto::EventMask::SUBSTRUCTURE_NOTIFY,
     );
     conn.change_window_attributes(screen.root, &change)?;
+
+    thread::spawn(move || {
+        // Open a separate connection for the thread
+        match x11rb::connect(None) {
+            Ok((timer_conn, _)) => {
+                loop {
+                    thread::sleep(Duration::from_secs(1));
+
+                    // Create a dummy event to wake up the main loop
+                    let event = ClientMessageEvent {
+                        response_type: x11rb::protocol::xproto::CLIENT_MESSAGE_EVENT,
+                        format: 32,
+                        sequence: 0,
+                        window: root_win,
+                        type_: x11rb::protocol::xproto::AtomEnum::STRING.into(), // Using generic STRING atom
+                        data: ClientMessageData::from([0, 0, 0, 0, 0]),
+                    };
+
+                    // Send event and flush
+                    let _ = timer_conn.send_event(
+                        false,
+                        root_win,
+                        x11rb::protocol::xproto::EventMask::NO_EVENT,
+                        &event,
+                    );
+                    let _ = timer_conn.flush();
+                }
+            }
+            Err(e) => log::error!("Timer thread failed to connect to X11: {}", e),
+        }
+    });
 
     let mut key_actions: HashMap<(u16, u8), Action> = HashMap::new();
 
@@ -217,7 +251,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     conn.flush()?;
     log::info!("RWM STARTED with {} keybinds", key_actions.len());
 
-    let mut wm_state = WindowManager::new(&conn, screen)?;
+    let mut wm_state = WindowManager::new(&conn, screen, config.clone())?;
 
     loop {
         conn.flush()?;
@@ -275,6 +309,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if evt.event == wm_state.bar.window {
                     wm_state.handle_bar_click(&conn, evt.event_x)?;
                 }
+            }
+            Event::ClientMessage(_) => {
+                wm_state.handle_timer_tick(&conn)?;
             }
             _ => {}
         }
